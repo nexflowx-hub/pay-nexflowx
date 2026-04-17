@@ -15,19 +15,23 @@ function createMockSession(mode: CheckoutMode): CheckoutSession {
     support_email: 'suporte@novasoft.pt',
   };
 
+  // Zero-Friction: ALL fields are optional (required: false).
+  // The frontend never blocks on empty fields.
   const collected_fields: CollectedField[] = mode === 'mini-store'
     ? [
-        { key: 'email' as FieldType, required: true, placeholder: 'seu@email.com', validation: 'email' },
-        { key: 'name' as FieldType, required: true, placeholder: 'Nome Completo' },
+        { key: 'email' as FieldType, required: false, placeholder: 'seu@email.com', validation: 'email' },
+        { key: 'name' as FieldType, required: false, placeholder: 'Nome Completo' },
         { key: 'nif' as FieldType, required: false, placeholder: '123456789', validation: 'nif' },
+        { key: 'phone' as FieldType, required: false, placeholder: '+351 912 345 678' },
       ]
     : [
-        { key: 'email' as FieldType, required: true, placeholder: 'seu@email.com', validation: 'email' },
-        { key: 'name' as FieldType, required: true, placeholder: 'Nome Completo' },
-        { key: 'address' as FieldType, required: true, placeholder: 'Rua, Número, Apartamento' },
-        { key: 'city' as FieldType, required: true, placeholder: 'Lisboa' },
-        { key: 'postal_code' as FieldType, required: true, placeholder: '1000-001' },
+        { key: 'email' as FieldType, required: false, placeholder: 'seu@email.com', validation: 'email' },
+        { key: 'name' as FieldType, required: false, placeholder: 'Nome Completo' },
+        { key: 'address' as FieldType, required: false, placeholder: 'Rua, Número, Apartamento' },
+        { key: 'city' as FieldType, required: false, placeholder: 'Lisboa' },
+        { key: 'postal_code' as FieldType, required: false, placeholder: '1000-001' },
         { key: 'nif' as FieldType, required: false, placeholder: '123456789', validation: 'nif' },
+        { key: 'phone' as FieldType, required: false, placeholder: '+351 912 345 678' },
       ];
 
   const products = mode === 'mini-store'

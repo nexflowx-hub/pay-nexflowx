@@ -1,7 +1,8 @@
 'use client';
 
 // ─── NeXFlowX Checkout Summary ──────────────────────────────────────────────
-// Displays the order summary with product details, subtotal, tax, and total.
+// Displays the order summary with product details, subtotal, generic tax line, and total.
+// Tax line is ALWAYS visible (even if zero) — no hardcoded percentages.
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -127,9 +128,12 @@ export function CheckoutSummary() {
             <span className="text-gray-500">{t('subtotal')}</span>
             <span className="text-gray-700">{formatCurrency(summary.subtotal, summary.currency, '€')}</span>
           </div>
+          {/* Generic tax line — ALWAYS visible, no hardcoded percentages */}
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">{t('tax')} (23%)</span>
-            <span className="text-gray-700">{formatCurrency(summary.tax, summary.currency, '€')}</span>
+            <span className="text-gray-500">{t('taxes_fees')}</span>
+            <span className={summary.tax === 0 ? 'text-gray-400' : 'text-gray-700'}>
+              {formatCurrency(summary.tax, summary.currency, '€')}
+            </span>
           </div>
           <Separator />
           <div className="flex justify-between">

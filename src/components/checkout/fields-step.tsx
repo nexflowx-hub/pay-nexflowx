@@ -1,16 +1,16 @@
 'use client';
 
-// ─── NeXFlowX Additional Fields Step (Progressive Profiling - Step 2) ───────
-// Dynamically renders fields based on collected_fields from the API.
+// ─── NeXFlowX Additional Fields Step (Zero-Friction — Step 2) ───────────────
+// ALL fields are optional. No validation blocking. Clean labels (no "(Opcional)").
+// Exception: Tax ID / NIF keeps its "(Opcional)" suffix.
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FileText, Phone, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { User, MapPin, FileText, Phone, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useCheckoutStore } from '@/lib/checkout/store';
 import { useTranslation } from '@/lib/checkout/i18n';
-import { isValidNIF } from '@/lib/checkout/utils';
 import type { CollectedField } from '@/lib/checkout/types';
 
 interface FieldsStepProps {
@@ -36,52 +36,31 @@ export function FieldsStep({ onNext }: FieldsStepProps) {
   const session = useCheckoutStore((s) => s.session);
   const { t } = useTranslation(locale);
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Filter out email field (already collected)
+  // Filter out email field (already collected in step 1)
   const fields = (session?.collected_fields || []).filter((f) => f.key !== 'email');
   const hasFields = fields.length > 0;
 
-  const validateField = (field: CollectedField, value: string): string => {
-    if (field.required && !value.trim()) {
-      return t('error_required');
-    }
-    if (field.validation === 'nif' && value.trim() && !isValidNIF(value)) {
-      return t('nif_invalid');
-    }
-    if (field.validation === 'email' && value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      return t('email_invalid');
-    }
-    return '';
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: Record<string, string> = {};
-
-    fields.forEach((field) => {
-      const value = customer[field.key] || '';
-      const error = validateField(field, value);
-      if (error) newErrors[field.key] = error;
-    });
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 300));
-    setIsSubmitting(false);
-    onNext();
-  };
-
   if (!hasFields) {
-    // No additional fields needed, skip
     onNext();
     return null;
   }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Zero-friction: NO validation. Just advance.
+    onNext();
+  };
+
+  // Get label for a field — NIF gets "(Opcional)", all others get clean labels
+  const getFieldLabel = (field: CollectedField): string => {
+    const i18nKey = `${field.key}_label`;
+    const baseLabel = t(i18nKey as keyof typeof import('@/lib/checkout/i18n').dictionaries['en']) || field.label || field.key;
+    // Only NIF gets the "(Opcional)" suffix
+    if (field.key === 'nif') {
+      return `${baseLabel} (${t('optional_suffix')})`;
+    }
+    return baseLabel;
+  };
 
   return (
     <AnimatePresence mode="wait">
@@ -138,7 +117,7 @@ export function FieldsStep({ onNext }: FieldsStepProps) {
                 className="overflow-hidden space-y-1.5"
               >
                 <label className="text-sm font-medium text-gray-700" htmlFor={field.key}>
-                  {t(`${field.key}_label` as keyof typeof import('@/lib/checkout/i18n').dictionaries['en']) || field.label || field.key}
+                  {getFieldLabel(field)}
                 </label>
                 <div className="relative">
                   {getFieldIcon(field.key) && (
@@ -152,13 +131,6 @@ export function FieldsStep({ onNext }: FieldsStepProps) {
                     value={customer[field.key] || ''}
                     onChange={(e) => {
                       setCustomer({ [field.key]: e.target.value });
-                      if (errors[field.key]) {
-                        setErrors((prev) => {
-                          const next = { ...prev };
-                          delete next[field.key];
-                          return next;
-                        });
-                      }
                     }}
                     placeholder={
                       t(`${field.key}_placeholder` as keyof typeof import('@/lib/checkout/i18n').dictionaries['en']) ||
@@ -169,18 +141,6 @@ export function FieldsStep({ onNext }: FieldsStepProps) {
                     autoComplete={field.key}
                   />
                 </div>
-                <AnimatePresence>
-                  {errors[field.key] && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
-                      className="text-xs text-red-500"
-                    >
-                      {errors[field.key]}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
               </motion.div>
             ))}
           </AnimatePresence>
@@ -198,18 +158,11 @@ export function FieldsStep({ onNext }: FieldsStepProps) {
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting}
-              className="h-11 flex-1 gap-1 font-semibold transition-all"
+              className="h-11 flex-1 gap-1 font-semibold transition-all hover:opacity-90"
               style={{ backgroundColor: session?.branding.primary_color }}
             >
-              {isSubmitting ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <>
-                  {t('continue_btn')}
-                  <ArrowRight className="size-4" />
-                </>
-              )}
+              {t('continue_btn')}
+              <ArrowRight className="size-4" />
             </Button>
           </div>
         </form>

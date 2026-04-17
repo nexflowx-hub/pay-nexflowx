@@ -1,11 +1,12 @@
 'use client';
 
-// ─── NeXFlowX Email Step (Progressive Profiling - Step 1) ───────────────────
-// For digital products: ask email first, then expand to payment.
+// ─── NeXFlowX Email Step (Zero-Friction — Step 1) ──────────────────────────
+// Email is NOT a blocker. The Continue button is always enabled.
+// Soft validation: only show a hint if the user typed something invalid.
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { Mail, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useCheckoutStore } from '@/lib/checkout/store';
@@ -21,35 +22,23 @@ export function EmailStep({ onNext }: EmailStepProps) {
   const customer = useCheckoutStore((s) => s.customer);
   const setCustomer = useCheckoutStore((s) => s.setCustomer);
   const session = useCheckoutStore((s) => s.session);
-  const step = useCheckoutStore((s) => s.step);
-  const goBack = useCheckoutStore((s) => s.goBack);
   const { t } = useTranslation(locale);
 
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hint, setHint] = useState('');
 
   const hasFields = session?.collected_fields.some((f) => f.key !== 'email');
   const needsFieldsStep = hasFields && session?.mode === 'cart';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
 
-    if (!customer.email.trim()) {
-      setError(t('email_required'));
+    // Soft validation — only warn if user typed something but it's invalid
+    if (customer.email.trim() && !isValidEmail(customer.email)) {
+      setHint(t('email_invalid'));
       return;
     }
 
-    if (!isValidEmail(customer.email)) {
-      setError(t('email_invalid'));
-      return;
-    }
-
-    setIsSubmitting(true);
-    // Simulate brief validation
-    await new Promise((r) => setTimeout(r, 400));
-    setIsSubmitting(false);
-
+    setHint('');
     if (needsFieldsStep) {
       useCheckoutStore.getState().setStep('fields');
     } else {
@@ -92,7 +81,7 @@ export function EmailStep({ onNext }: EmailStepProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email input */}
+          {/* Email input — always optional, no blocker */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700" htmlFor="email">
               {t('email_label')}
@@ -105,7 +94,7 @@ export function EmailStep({ onNext }: EmailStepProps) {
                 value={customer.email}
                 onChange={(e) => {
                   setCustomer({ email: e.target.value });
-                  if (error) setError('');
+                  if (hint) setHint('');
                 }}
                 placeholder={t('email_placeholder')}
                 className="h-12 pl-10 text-base"
@@ -114,36 +103,29 @@ export function EmailStep({ onNext }: EmailStepProps) {
               />
             </div>
             <AnimatePresence>
-              {error && (
+              {hint && (
                 <motion.p
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -5 }}
-                  className="text-xs text-red-500"
+                  className="text-xs text-amber-600"
                 >
-                  {error}
+                  {hint}
                 </motion.p>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Continue button */}
+          {/* Continue button — ALWAYS ACTIVE (zero friction) */}
           <Button
             type="submit"
-            disabled={isSubmitting || !customer.email}
-            className="h-12 w-full text-base font-semibold transition-all"
+            className="h-12 w-full text-base font-semibold transition-all hover:opacity-90"
             style={{
               backgroundColor: session?.branding.primary_color,
             }}
           >
-            {isSubmitting ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <>
-                {t('continue_btn')}
-                <ArrowRight className="size-4" />
-              </>
-            )}
+            {t('continue_btn')}
+            <ArrowRight className="size-4" />
           </Button>
         </form>
       </motion.div>
