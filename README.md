@@ -1,6 +1,6 @@
-# NeXFlowX Checkout
+# Checkout - Encrypted
 
-> Orquestrador Financeiro White-Label — Sistema de Checkout Zero-Redirects de Alta Conversão
+> NeXFlowX — Orquestrador Financeiro White-Label. Sistema de Checkout Zero-Redirects de Alta Conversão com criptografia bancária.
 
 <p align="center">
   <img src="public/logo.svg" alt="NeXFlowX" width="48" />
@@ -512,11 +512,14 @@ O componente `payment-card.tsx` está preparado para injetar Elements SDK nativa
 
 ## Segurança
 
-- Encriptação SSL em todo o trânsito de dados
+- Criptografia SSL 256-bit em todo o trânsito de dados
+- Conformidade PCI DSS (Payment Card Industry Data Security Standard)
 - Tokenização de dados de cartão (preparado para Stripe/Paddle)
 - Sem armazenamento de dados sensíveis no cliente
 - Polling via endpoints autenticados
 - CORS configurado para o domínio da loja
+- Meta tags de segurança para indexação otimizada
+- Logótipos oficiais Visa, Mastercard, Amex, MB WAY, PIX (SVG inline)
 
 ---
 
@@ -528,5 +531,5 @@ Este projeto é propriedade da **NeXFlowX**. Todos os direitos reservados.
 
 <p align="center">
   <strong>NeXFlowX</strong> — Orquestrador Financeiro White-Label<br/>
-  <em>Checkout Zero-Redirects de Alta Conversão</em>
+  <em>Checkout - Encrypted — Zero-Redirects de Alta Conversão</em>
 </p>

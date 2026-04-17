@@ -10,7 +10,7 @@ type TranslationKeys = typeof dictionaries['en'];
 const dictionaries = {
   pt: {
     // Header
-    secure_checkout: 'Checkout Seguro',
+    secure_checkout: 'Checkout - Encrypted',
     powered_by: 'Processado por',
     change_language: 'Alterar idioma',
 
@@ -115,7 +115,7 @@ const dictionaries = {
     error_required: 'Este campo é obrigatório',
 
     // Footer
-    footer_secure: 'Pagamento 100% seguro e encriptado',
+    footer_secure: 'Pagamento 100% seguro e criptografado',
     footer_terms: 'Termos e Condições',
     footer_privacy: 'Política de Privacidade',
     footer_refund: 'Política de Devoluções',
@@ -128,7 +128,7 @@ const dictionaries = {
     or: 'ou',
   },
   en: {
-    secure_checkout: 'Secure Checkout',
+    secure_checkout: 'Checkout - Encrypted',
     powered_by: 'Processed by',
     change_language: 'Change language',
 
@@ -236,7 +236,7 @@ const dictionaries = {
     or: 'or',
   },
   es: {
-    secure_checkout: 'Pago Seguro',
+    secure_checkout: 'Checkout - Encrypted',
     powered_by: 'Procesado por',
     change_language: 'Cambiar idioma',
 
@@ -332,7 +332,7 @@ const dictionaries = {
     error_session_expired: 'Sesión expirada.',
     error_required: 'Este campo es obligatorio',
 
-    footer_secure: 'Pago 100% seguro y encriptado',
+    footer_secure: 'Pago 100% seguro y cifrado',
     footer_terms: 'Términos y Condiciones',
     footer_privacy: 'Política de Privacidad',
     footer_refund: 'Política de Devoluciones',
@@ -344,7 +344,7 @@ const dictionaries = {
     or: 'o',
   },
   fr: {
-    secure_checkout: 'Paiement Sécurisé',
+    secure_checkout: 'Checkout - Encrypted',
     powered_by: 'Traité par',
     change_language: 'Changer de langue',
 
