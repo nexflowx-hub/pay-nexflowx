@@ -60,12 +60,9 @@ function LegalContent({ docType }: { docType: LegalDocType }) {
   const { title, content } = getLegalContent(docType, locale, storeName);
 
   return (
-    <div className="prose prose-sm prose-gray dark:prose-invert max-w-none">
-      <div
-        className="legal-content leading-relaxed text-sm text-gray-700 dark:text-gray-300 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-gray-900 [&_h2:dark]:text-gray-100 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800 [&_h3:dark]:text-gray-200 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:ml-4 [&_ul]:list-disc [&_li]:mb-1 [&_strong]:text-gray-900 [&_strong:dark]:text-gray-100 [&_em]:text-gray-500 [&_em:dark]:text-gray-400 [&_em]:text-xs [&_em]:block [&_em]:mt-6 [&_em]:pt-4 [&_em]:border-t [&_em]:border-gray-200 [&_em:dark]:border-gray-700"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    </div>
+    <div className="legal-content leading-relaxed text-sm text-gray-700 dark:text-gray-300 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-6 [&_h2]:mb-3 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:ml-4 [&_ul]:list-disc [&_li]:mb-1 [&_em]:text-xs [&_em]:block [&_em]:mt-6 [&_em]:pt-4 [&_em]:border-t"
+      dangerouslySetInnerHTML={{ __html: content }}
+    />
   );
 }
 

@@ -158,3 +158,37 @@ select:focus,
 button:focus-visible {
   outline: none;
 }
+
+/* Legal document content styling (light + dark) */
+.legal-content {
+  --lc-heading: #111827;
+  --lc-heading3: #1f2937;
+  --lc-strong: #111827;
+  --lc-em: #6b7280;
+  --lc-em-border: #e5e7eb;
+}
+
+.dark .legal-content {
+  --lc-heading: #f3f4f6;
+  --lc-heading3: #e5e7eb;
+  --lc-strong: #f3f4f6;
+  --lc-em: #9ca3af;
+  --lc-em-border: #374151;
+}
+
+.legal-content h2 {
+  color: var(--lc-heading);
+}
+
+.legal-content h3 {
+  color: var(--lc-heading3);
+}
+
+.legal-content strong {
+  color: var(--lc-strong);
+}
+
+.legal-content em {
+  color: var(--lc-em);
+  border-color: var(--lc-em-border);
+}
