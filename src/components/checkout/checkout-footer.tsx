@@ -2,12 +2,14 @@
 
 // ─── NeXFlowX Checkout Footer ───────────────────────────────────────────────
 // Real payment brand logos sourced from official brand assets.
-// SVG logos loaded from /public/logos for crisp rendering.
+// Legal links open in responsive Drawer (mobile) / Dialog (desktop) — zero API calls.
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useCheckoutStore } from '@/lib/checkout/store';
 import { useTranslation } from '@/lib/checkout/i18n';
+import { openLegalDialog } from './legal-dialog';
+import type { LegalDocType } from '@/lib/checkout/legal-templates';
 
 // ─── Inline Mastercard (two overlapping circles — clean & realistic) ────────
 function MastercardLogo({ className }: { className?: string }) {
@@ -22,6 +24,33 @@ function MastercardLogo({ className }: { className?: string }) {
       <circle cx="104" cy="48" r="40" fill="#F79E1B" />
       <path d="M80 16.7a40 40 0 010 62.6 40 40 0 000-62.6z" fill="#FF5F00" />
     </svg>
+  );
+}
+
+// ─── Legal link button ──────────────────────────────────────────────────────
+function LegalLink({
+  labelKey,
+  docType,
+  locale,
+  t,
+}: {
+  labelKey: string;
+  docType: LegalDocType;
+  locale: string;
+  t: (key: string) => string;
+}) {
+  const handleClick = useCallback(() => {
+    openLegalDialog(docType);
+  }, [docType]);
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-pointer transition-colors focus:outline-none focus:underline underline-offset-2"
+    >
+      {t(labelKey)}
+    </button>
   );
 }
 
@@ -166,19 +195,13 @@ export function CheckoutFooter() {
 
           <div className="h-px w-full max-w-sm bg-gray-200 dark:bg-gray-800" />
 
-          {/* Legal links */}
+          {/* Legal links — open Drawer (mobile) / Dialog (desktop) */}
           <div className="flex items-center gap-4">
-            <span className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-pointer transition-colors">
-              {t('footer_terms')}
-            </span>
+            <LegalLink labelKey="footer_terms" docType="terms" locale={locale} t={t} />
             <span className="text-xs text-gray-300 dark:text-gray-700">|</span>
-            <span className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-pointer transition-colors">
-              {t('footer_privacy')}
-            </span>
+            <LegalLink labelKey="footer_privacy" docType="privacy" locale={locale} t={t} />
             <span className="text-xs text-gray-300 dark:text-gray-700">|</span>
-            <span className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-pointer transition-colors">
-              {t('footer_refund')}
-            </span>
+            <LegalLink labelKey="footer_refund" docType="refund" locale={locale} t={t} />
           </div>
 
           {/* Powered by */}

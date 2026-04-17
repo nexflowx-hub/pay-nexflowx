@@ -11,6 +11,7 @@ import { CheckoutLayout } from '@/components/checkout/checkout-layout';
 import { CheckoutHeader } from '@/components/checkout/checkout-header';
 import { CheckoutBody } from '@/components/checkout/checkout-body';
 import { CheckoutFooter } from '@/components/checkout/checkout-footer';
+import { LegalViewer } from '@/components/checkout/legal-dialog';
 import { CheckoutSummary } from '@/components/checkout/checkout-summary';
 import { CheckoutSkeleton } from '@/components/checkout/skeleton-loader';
 import type { CheckoutSession, CheckoutMode } from '@/lib/checkout/types';
@@ -125,6 +126,7 @@ export default function CheckoutPage() {
               </CheckoutLayout>
 
               <CheckoutFooter />
+              <LegalViewer />
             </CheckoutProvider>
           </motion.div>
         )}
