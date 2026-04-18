@@ -15,6 +15,38 @@ export type FieldType = 'email' | 'name' | 'address' | 'city' | 'postal_code' | 
 
 export type ProductType = 'digital' | 'physical';
 
+// ─── Payment Engines (multi-provider architecture) ─────────────────────────
+
+export type PaymentEngine = 'native' | 'stripe' | 'viva' | 'sumup' | 'rede' | 'paypal' | 'iframe' | string;
+
+export interface ProviderData {
+  /** Engine identifier: 'native', 'stripe', 'viva', 'sumup', 'rede', 'paypal', 'iframe', or custom */
+  engine: PaymentEngine;
+  /** Publishable/api key for the provider */
+  publishable_key?: string;
+  /** Merchant identifier */
+  merchant_id?: string;
+  /** Account ID (e.g., Stripe Connect) */
+  account_id?: string;
+  /** On-demand script URL to inject */
+  script_url?: string;
+  /** Generic iframe URL for iframe engine */
+  iframe_url?: string;
+  /** Target container ID for SDK injection */
+  container_id?: string;
+  /** Provider-specific metadata */
+  metadata?: Record<string, string | number | boolean>;
+  /** Display label override */
+  label?: string;
+  /** Display icon override (URL) */
+  icon_url?: string;
+}
+
+export interface PaymentMethodConfig {
+  type: PaymentMethodType;
+  provider: ProviderData;
+}
+
 // ─── Branding Config (from API) ─────────────────────────────────────────────
 
 export interface BrandingConfig {
@@ -57,6 +89,8 @@ export interface CheckoutSession {
   collected_fields: CollectedField[];
   products: CheckoutProduct[];
   enabled_methods: PaymentMethodType[];
+  /** Per-method provider configuration (engine, keys, script URLs) */
+  provider_data: Record<PaymentMethodType, ProviderData>;
   success_url?: string;
   cancel_url?: string;
   expires_at: string;
@@ -83,8 +117,12 @@ export interface PaymentSubmission {
   method: PaymentMethodType;
   amount: number;
   currency: string;
-  // Card-specific
+  /** Which engine processed this payment */
+  engine?: PaymentEngine;
+  /** Token from the payment engine SDK (Stripe, Viva, etc.) */
   card_token?: string;
+  /** Additional engine-specific payload */
+  engine_data?: Record<string, unknown>;
   // MB WAY-specific
   phone?: string;
   // PIX-specific (server generates)

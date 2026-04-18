@@ -123,3 +123,33 @@ Stage Summary:
 - Mode switcher allows live switching between Mini-Store and Cart layouts
 - Zero compilation errors, zero lint errors
 - All API routes functional with realistic mock data
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Multi-Engine Payment Architecture — Card Wrapper as "Camaleão das Fintechs"
+
+Work Log:
+- Updated `src/lib/checkout/types.ts` — Added PaymentEngine, ProviderData, PaymentMethodConfig types; Added provider_data to CheckoutSession; Added engine/engine_data fields to PaymentSubmission
+- Updated `src/lib/checkout/i18n.ts` — Added 14 new translation keys per language (engine_loading, engine_error, engine_native_badge, mbway_native_badge, pix_native_badge, etc.)
+- Created `src/lib/checkout/engines/use-payment-script.ts` — On-demand script injection hook: dynamically creates <script> tags via useEffect, supports timeout, reload, pre-check for existing globals/DOM scripts
+- Created `src/lib/checkout/engines/registry.ts` — Engine registry with lazy-loaded component map, getEngineComponent(), isNativeEngine(), getEngineLoadingKey(), registerEngine() for runtime extensibility
+- Created `src/lib/checkout/engines/native-engine.tsx` — NeXFlowX Native card form with Shield badge, card brand detection, full formatting (number/expiry/CVC)
+- Created `src/lib/checkout/engines/stripe-engine.tsx` — Stripe adapter: loads stripe.js on demand, shows Stripe logo badge, simulated CardElement container, loading/error states with retry
+- Created `src/lib/checkout/engines/viva-engine.tsx` — Viva Wallet adapter: loads vivapayments script on demand, IFrame injection container, sandbox/production URL switching, sandbox badge
+- Created `src/lib/checkout/engines/sumup-engine.tsx` — SumUp adapter: loads sumup script on demand, card form container, loading/error states
+- Created `src/lib/checkout/engines/iframe-engine.tsx` — Generic IFrame adapter: takes iframe_url from provider_data, postMessage communication, secure sandbox attributes
+- Created `src/lib/checkout/engines/index.ts` — Public barrel export for all engines and registry functions
+- Refactored `src/components/checkout/payment-card.tsx` — Complete rewrite as Multi-Engine Wrapper: reads engine from session.provider_data.card, lazy-loads adapter via registry, Suspense fallback with EngineLoadingSkeleton, error state with retry, tokenize callback passes engine data to backend
+- Updated `src/app/api/checkout/session/route.ts` — Added PROVIDER_CONFIGS with all 4 methods (card: native with commented Stripe/Viva/SumUp examples, mbway/pix/iban: native with backend_routing metadata), session now returns provider_data per method
+- Updated `src/components/checkout/payment-mbway.tsx` — Added "NeXFlowX Nativo" badge, Shield icon, native description text
+- Updated `src/components/checkout/payment-pix.tsx` — Added "NeXFlowX Nativo" badge with Shield icon, native description text under QR code
+
+Stage Summary:
+- **Architecture**: Payment card is now a Multi-Engine Wrapper — NOT hardcoded to Stripe
+- **On-Demand Scripts**: Third-party SDKs (Stripe.js, Viva, SumUp) are loaded ONLY when user selects credit card payment, via useEffect dynamic <script> injection
+- **Engine Adapters**: 5 adapters built (native, stripe, viva, sumup, iframe) with consistent interface (provider, onTokenize, isProcessing, primaryColor)
+- **Registry Pattern**: Central registry with lazy loading, runtime extensibility via registerEngine()
+- **Native NeXFlowX**: MB WAY & PIX reinforced as native — frontend collects minimal data, backend handles bank routing invisibly
+- **Backend Controls Everything**: Changing `PROVIDER_CONFIGS.card.engine` from 'native' to 'stripe' or 'viva' instantly swaps the card form — zero frontend changes needed
+- **Zero Lint Errors**: Clean ESLint pass with all strict React 19 rules

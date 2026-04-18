@@ -5,8 +5,9 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { QrCode, Copy, Check, Loader2 } from 'lucide-react';
+import { QrCode, Copy, Check, Loader2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useCheckoutStore } from '@/lib/checkout/store';
 import { useTranslation } from '@/lib/checkout/i18n';
 import { usePaymentPolling } from '@/hooks/use-polling';
@@ -104,8 +105,16 @@ export function PixPayment({ onSubmitPayment }: PixPaymentProps) {
       transition={{ duration: 0.4 }}
       className="flex flex-col items-center text-center"
     >
-      {/* QR Code */}
+      {/* QR Code + Native NeXFlowX badge */}
       <div className="mb-4 overflow-hidden rounded-xl border-2 border-gray-100 bg-white p-3 shadow-sm">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Shield className="size-3.5 text-emerald-500" />
+            <Badge variant="outline" className="border-emerald-200 text-emerald-700 text-[10px] font-semibold uppercase tracking-wider bg-emerald-50">
+              {t('pix_native_badge')}
+            </Badge>
+          </div>
+        </div>
         <motion.img
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -114,6 +123,7 @@ export function PixPayment({ onSubmitPayment }: PixPaymentProps) {
           alt="PIX QR Code"
           className="size-44 sm:size-48"
         />
+        <p className="mt-1.5 text-center text-[10px] text-gray-400">{t('pix_native_desc')}</p>
       </div>
 
       <div className="flex items-center gap-1.5 mb-1">

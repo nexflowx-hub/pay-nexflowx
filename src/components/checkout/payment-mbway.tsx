@@ -5,9 +5,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Smartphone, Loader2, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
+import { Smartphone, Loader2, CheckCircle2, XCircle, RotateCcw, Shield } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useCheckoutStore } from '@/lib/checkout/store';
 import { useTranslation } from '@/lib/checkout/i18n';
 import { usePaymentPolling } from '@/hooks/use-polling';
@@ -109,15 +110,21 @@ export function MbWayPayment({ onSubmitPayment }: MbWayPaymentProps) {
           onSubmit={handleSubmit}
           className="space-y-4"
         >
-          {/* MB WAY branding */}
+          {/* MB WAY branding + Native NeXFlowX badge */}
           <div className="flex items-center gap-3 rounded-lg bg-[#003C71] p-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-white">
               <span className="text-lg font-bold text-[#003C71]">MB</span>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-white">MB WAY</p>
-              <p className="text-xs text-white/70">{t('mbway_desc')}</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-white">MB WAY</p>
+                <Badge variant="outline" className="border-white/30 text-[10px] font-semibold uppercase tracking-wider bg-white/10 text-white">
+                  {t('mbway_native_badge')}
+                </Badge>
+              </div>
+              <p className="text-xs text-white/70">{t('mbway_native_desc')}</p>
             </div>
+            <Shield className="size-4 text-white/40" />
           </div>
 
           {/* Phone input */}
