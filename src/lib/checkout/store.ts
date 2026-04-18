@@ -90,6 +90,13 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   },
 
   setSession: (session) => {
+    // ─── Payload Validation ─────────────────────────────────────────────────
+    // Reject sessions missing required structural fields (e.g. malformed API response)
+    if (!session?.branding?.primary_color || !session?.tx_id) {
+      console.error('[NeXFlowX] Invalid session payload: missing branding or tx_id');
+      return;
+    }
+
     // Defensive: products and taxes may be omitted by backend when empty
     const products = session.products || [];
     const taxes = session.taxes || [];

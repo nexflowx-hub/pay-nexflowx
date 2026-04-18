@@ -26,7 +26,7 @@ export function EmailStep({ onNext }: EmailStepProps) {
 
   const [hint, setHint] = useState('');
 
-  const hasFields = session?.collected_fields.some((f) => f.key !== 'email');
+  const hasFields = (session?.collected_fields || []).some((f) => f.key !== 'email');
   const needsFieldsStep = hasFields && session?.mode === 'redirect';
 
   const handleSubmit = (e: React.FormEvent) => {
