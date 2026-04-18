@@ -73,7 +73,9 @@ export function PaymentSelector({ children }: PaymentSelectorProps) {
 
   if (!session) return null;
 
-  const { available_methods, branding } = session;
+  // Defensive: backend may omit available_methods array
+  const available_methods = session.available_methods || [];
+  const { branding } = session;
 
   const handleSelect = (method: AvailableMethod) => {
     setSelectedMethodId(method.id);

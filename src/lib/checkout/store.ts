@@ -78,29 +78,41 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   ...initialState,
   locale: detectLocale(),
 
+  // ─── Defensive Helpers ──────────────────────────────────────────────────
+  // Short-circuit evaluation ensures .reduce() is never called on undefined.
+  // Backend may omit empty arrays from JSON (session.taxes, session.products, etc.)
+
   // Computed: resolve selectedMethod from selectedMethodId + available_methods
   get selectedMethod(): AvailableMethod | null {
     const { session, selectedMethodId } = get();
     if (!session || !selectedMethodId) return null;
-    return session.available_methods.find((m) => m.id === selectedMethodId) ?? null;
+    return (session.available_methods || []).find((m) => m.id === selectedMethodId) ?? null;
   },
 
   setSession: (session) => {
-    const subtotal = session.products.reduce((acc, p) => acc + p.price * (p.quantity || 1), 0);
-    const tax = Math.round(subtotal * 0.23 * 100) / 100; // 23% IVA
+    // Defensive: products and taxes may be omitted by backend when empty
+    const products = session.products || [];
+    const taxes = session.taxes || [];
+    const methods = session.available_methods || [];
+
+    const subtotal = products.reduce((acc, p) => acc + p.price * (p.quantity || 1), 0);
+    // If backend sends pre-calculated taxes, use them; otherwise fallback to 23% IVA
+    const tax = taxes.length > 0
+      ? Math.round(taxes.reduce((acc, t) => acc + t.amount, 0) * 100) / 100
+      : Math.round(subtotal * 0.23 * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
-    const items = session.products.reduce((acc, p) => acc + (p.quantity || 1), 0);
+    const items = products.reduce((acc, p) => acc + (p.quantity || 1), 0);
 
     set({
       session,
       isLoadingSession: false,
       step: 'email',
-      selectedMethodId: session.available_methods[0]?.id ?? null,
+      selectedMethodId: methods[0]?.id ?? null,
       orderSummary: {
         subtotal,
         tax,
         total,
-        currency: session.products[0]?.currency || 'EUR',
+        currency: products[0]?.currency || 'EUR',
         items,
       },
     });

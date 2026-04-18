@@ -117,9 +117,22 @@ export interface CheckoutProduct {
   quantity?: number;
 }
 
+// ─── Tax Line Item ──────────────────────────────────────────────────────────
+
+export interface TaxLineItem {
+  /** Tax name (e.g. "IVA 23%", "IRS Retention") */
+  name: string;
+  /** Rate as decimal (e.g. 0.23 for 23%) */
+  rate: number;
+  /** Pre-calculated tax amount */
+  amount: number;
+}
+
 // ─── Checkout Session (SDUI — from core API) ────────────────────────────────
 // This is the server-driven payload that fully defines the checkout experience.
 // No hardcoded payment methods — everything comes from `available_methods`.
+// All array fields are marked optional at runtime to prevent crashes when
+// the backend omits empty arrays from the JSON response.
 
 export interface CheckoutSession {
   /** Transaction ID (used in URL: /checkout/:txId) */
@@ -128,12 +141,14 @@ export interface CheckoutSession {
   mode: 'embedded' | 'redirect';
   /** Merchant branding configuration */
   branding: BrandingConfig;
-  /** Fields to collect from the customer */
-  collected_fields: CollectedField[];
-  /** Products in this checkout */
-  products: CheckoutProduct[];
+  /** Fields to collect from the customer (backend may omit if empty) */
+  collected_fields?: CollectedField[];
+  /** Products in this checkout (backend may omit if empty) */
+  products?: CheckoutProduct[];
+  /** Tax line items (backend may omit if no taxes apply) */
+  taxes?: TaxLineItem[];
   /** Available payment methods (SDUI — drives all rendering) */
-  available_methods: AvailableMethod[];
+  available_methods?: AvailableMethod[];
   /** Redirect URL after successful payment */
   return_url?: string;
   /** Redirect URL if user cancels */

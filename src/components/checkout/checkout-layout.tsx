@@ -19,6 +19,8 @@ export function CheckoutLayout({ children }: CheckoutLayoutProps) {
   const { mode, branding } = session;
   // In SDUI: 'embedded' = split-screen layout (mini-store), 'redirect' = centered (cart)
   const isMiniStore = mode === 'embedded';
+  // Defensive: backend may omit products array
+  const products = session.products || [];
   const isSuccess = step === 'success';
 
   if (isSuccess) {
@@ -63,16 +65,16 @@ export function CheckoutLayout({ children }: CheckoutLayoutProps) {
             <div className="relative z-10 flex flex-1 flex-col items-center justify-center py-8">
               <div className="mb-6 rounded-2xl border-2 border-white/20 bg-white/10 p-6 backdrop-blur-sm">
                 <img
-                  src={session.products[0]?.image_url || '/product-demo.png'}
-                  alt={session.products[0]?.name}
+                  src={products[0]?.image_url || '/product-demo.png'}
+                  alt={products[0]?.name}
                   className="h-48 w-48 rounded-xl object-cover shadow-2xl xl:h-56 xl:w-56"
                 />
               </div>
               <h2 className="text-center text-2xl font-bold text-white xl:text-3xl">
-                {session.products[0]?.name}
+                {products[0]?.name}
               </h2>
               <p className="mt-2 max-w-sm text-center text-sm leading-relaxed text-white/80">
-                {session.products[0]?.description}
+                {products[0]?.description}
               </p>
             </div>
 
@@ -96,7 +98,7 @@ export function CheckoutLayout({ children }: CheckoutLayoutProps) {
         {/* Mobile: Stacked layout */}
         <div className="flex flex-col lg:hidden">
           {/* Mobile product banner */}
-          {session.products[0]?.image_url && (
+          {products[0]?.image_url && (
             <div className="relative overflow-hidden p-6 pb-8" style={{
               background: `linear-gradient(135deg, ${branding.primary_color}, ${branding.accent_color})`,
             }}>
@@ -105,13 +107,13 @@ export function CheckoutLayout({ children }: CheckoutLayoutProps) {
               </div>
               <div className="relative z-10 flex gap-4">
                 <img
-                  src={session.products[0].image_url}
-                  alt={session.products[0].name}
+                  src={products[0].image_url}
+                  alt={products[0].name}
                   className="size-16 rounded-lg border-2 border-white/20 object-cover"
                 />
                 <div className="flex-1">
-                  <h2 className="text-base font-bold text-white">{session.products[0].name}</h2>
-                  <p className="mt-1 text-xs text-white/80 line-clamp-2">{session.products[0].description}</p>
+                  <h2 className="text-base font-bold text-white">{products[0].name}</h2>
+                  <p className="mt-1 text-xs text-white/80 line-clamp-2">{products[0].description}</p>
                 </div>
               </div>
             </div>

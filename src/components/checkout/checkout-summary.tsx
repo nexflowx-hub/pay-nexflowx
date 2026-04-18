@@ -23,7 +23,9 @@ export function CheckoutSummary() {
 
   if (!session || !summary) return null;
 
-  const { products, mode } = session;
+  const { mode } = session;
+  // Defensive: backend may omit products array
+  const products = session.products || [];
   const isMiniStore = mode === 'embedded';
 
   return (

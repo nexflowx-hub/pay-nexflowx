@@ -178,7 +178,7 @@ export function SuccessScreen() {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">{t('step_payment')}</span>
                 <span className="font-medium text-gray-700 capitalize">
-                  {paymentResponse?.method_type || session.available_methods[0]?.type || ''}
+                  {paymentResponse?.method_type || (session.available_methods || [])[0]?.type || ''}
                 </span>
               </div>
             </div>
@@ -219,7 +219,7 @@ export function SuccessScreen() {
             transition={{ delay: 0.9 }}
             className="mt-4 flex flex-col gap-3"
           >
-            {session.products[0]?.type === 'digital' && (
+            {(session.products || [])[0]?.type === 'digital' && (
               <Button
                 className="h-11 w-full gap-2 font-semibold transition-all"
                 style={{ backgroundColor: session.branding.primary_color }}
