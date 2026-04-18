@@ -212,3 +212,28 @@ Stage Summary:
 - 100% i18n coverage (no hardcoded English in user-visible text)
 - No demo mode switcher in production
 - Zero ESLint errors
+
+---
+Task ID: hotfix-defensive-arrays
+Agent: Main Agent
+Task: Hotfix — Defensive Programming: prevent crashes when backend omits arrays
+
+Work Log:
+- Diagnosed crash: `TypeError: Cannot read properties of undefined (reading 'reduce')` in `store.ts` when backend omits `taxes` array from JSON
+- Root cause: `CheckoutSession` type declared `products`, `collected_fields`, `available_methods` as required arrays, but backend omits empty arrays from JSON responses
+- Updated `src/lib/checkout/types.ts`: Made `products`, `collected_fields`, `taxes`, `available_methods` optional (`?`) on CheckoutSession; added `TaxLineItem` interface (name, rate, amount) for structured tax data
+- Updated `src/lib/checkout/store.ts`: Safe-reduce with `(array || [])` fallback pattern on all `.reduce()` calls; `taxes` logic now uses backend-provided amounts when available, falls back to 23% IVA calculation
+- Updated `src/components/checkout/checkout-layout.tsx`: Defensive `products` access via `const products = session.products || []`
+- Updated `src/components/checkout/checkout-summary.tsx`: Same defensive pattern for `products`
+- Updated `src/components/checkout/payment-selector.tsx`: Defensive `available_methods` access
+- Updated `src/components/checkout/success-screen.tsx`: Inline defensive `(session.products || [])[0]` and `(session.available_methods || [])[0]`
+- Verified `src/components/checkout/fields-step.tsx` was already safe (used `|| []` pattern)
+- Verified `src/app/page.tsx` only accesses required scalar fields (tx_id, mode)
+- Zero ESLint errors, clean compilation
+
+Stage Summary:
+- **Crash fix**: `session.taxes.reduce(...)` and `session.products.reduce(...)` can never crash — all arrays default to `[]`
+- **TaxLineItem support**: Backend can now send structured tax line items `{ name, rate, amount }`; frontend sums them; falls back to 23% IVA if omitted
+- **Type correctness**: `CheckoutSession` now accurately reflects real API behavior (arrays may be undefined)
+- **Defensive pattern**: Every `.reduce()`, `.map()`, `.find()`, `.length`, and `[0]` access on session arrays is now protected
+- Pushed to GitHub: commit `d83fcd1`
