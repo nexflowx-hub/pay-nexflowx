@@ -1,7 +1,8 @@
 'use client';
 
 // ─── NeXFlowX IBAN Bank Transfer Payment ────────────────────────────────────
-// Displays bank details + "I completed the transfer" CTA.
+// SDUI-aware: receives the full AvailableMethod, reads bank data from
+// method.provider_data.metadata or from the submit response.
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,13 +19,14 @@ import { Separator } from '@/components/ui/separator';
 import { useCheckoutStore } from '@/lib/checkout/store';
 import { useTranslation } from '@/lib/checkout/i18n';
 import { copyToClipboard } from '@/lib/checkout/utils';
-import type { PaymentSubmission, PaymentResponse } from '@/lib/checkout/types';
+import type { PaymentSubmission, PaymentResponse, AvailableMethod } from '@/lib/checkout/types';
 
 interface IbanPaymentProps {
+  method: AvailableMethod;
   onSubmitPayment: (submission: PaymentSubmission) => Promise<PaymentResponse>;
 }
 
-export function IbanPayment({ onSubmitPayment }: IbanPaymentProps) {
+export function IbanPayment({ method, onSubmitPayment }: IbanPaymentProps) {
   const locale = useCheckoutStore((s) => s.locale);
   const session = useCheckoutStore((s) => s.session);
   const customer = useCheckoutStore((s) => s.customer);
@@ -39,6 +41,14 @@ export function IbanPayment({ onSubmitPayment }: IbanPaymentProps) {
   const [paymentResponse, setLocalResponse] = useState<PaymentResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Derive bank details: prioritize submit response, fall back to provider_data.metadata
+  const meta = method.provider_data?.metadata ?? {};
+  const bankIban = paymentResponse?.iban || (meta.iban as string) || '';
+  const bankSwiftBic = paymentResponse?.swift_bic || (meta.swift_bic as string) || '';
+  const bankName = paymentResponse?.bank_name || (meta.bank_name as string) || '';
+  const accountHolder = paymentResponse?.account_holder || (meta.account_holder as string) || '';
+  const reference = paymentResponse?.reference || (meta.reference as string) || '';
+
   // Generate bank transfer payment on mount
   useEffect(() => {
     async function initTransfer() {
@@ -47,9 +57,10 @@ export function IbanPayment({ onSubmitPayment }: IbanPaymentProps) {
 
       try {
         const response = await onSubmitPayment({
-          session_id: session.id,
+          tx_id: session.tx_id,
           customer,
-          method: 'iban',
+          method_id: method.id,
+          method_type: method.type,
           amount: summary.total,
           currency: summary.currency,
         });
@@ -78,14 +89,24 @@ export function IbanPayment({ onSubmitPayment }: IbanPaymentProps) {
   const handleConfirm = () => {
     setConfirmed(true);
     setPaymentStatus('confirmed');
-    // In production, this would notify the backend
     // Auto-transition to success after a moment
     setTimeout(() => {
       setStep('success');
     }, 2000);
   };
 
-  if (isLoading || !paymentResponse) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="size-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+      </div>
+    );
+  }
+
+  // If we have metadata from the API (no submit response yet), show bank details immediately
+  const hasBankData = bankIban || bankName;
+
+  if (!hasBankData && !paymentResponse) {
     return (
       <div className="flex items-center justify-center py-8">
         <div className="size-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
@@ -114,46 +135,18 @@ export function IbanPayment({ onSubmitPayment }: IbanPaymentProps) {
           {/* Bank Details */}
           <div className="space-y-3">
             {/* IBAN */}
-            <div className="group">
-              <p className="mb-1 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('iban_account')}</p>
-              <div className="flex items-center gap-2 rounded-lg border bg-gray-50 p-3">
-                <code className="flex-1 text-sm font-mono font-medium text-gray-800 break-all">
-                  {paymentResponse.iban}
-                </code>
-                <button
-                  onClick={() => handleCopy(paymentResponse.iban || '', 'iban')}
-                  className="shrink-0 rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
-                >
-                  {copiedField === 'iban' ? (
-                    <Check className="size-4 text-emerald-500" />
-                  ) : (
-                    <Copy className="size-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {/* Bank */}
-              <div>
-                <p className="mb-1 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('iban_bank')}</p>
-                <div className="rounded-lg border bg-gray-50 p-3">
-                  <p className="text-sm font-medium text-gray-800">{paymentResponse.bank_name}</p>
-                </div>
-              </div>
-
-              {/* Reference */}
-              <div>
-                <p className="mb-1 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('iban_reference')}</p>
+            {bankIban && (
+              <div className="group">
+                <p className="mb-1 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('iban_account')}</p>
                 <div className="flex items-center gap-2 rounded-lg border bg-gray-50 p-3">
-                  <code className="flex-1 text-sm font-mono font-medium text-gray-800">
-                    {paymentResponse.reference}
+                  <code className="flex-1 text-sm font-mono font-medium text-gray-800 break-all">
+                    {bankIban}
                   </code>
                   <button
-                    onClick={() => handleCopy(paymentResponse.reference || '', 'ref')}
+                    onClick={() => handleCopy(bankIban, 'iban')}
                     className="shrink-0 rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
                   >
-                    {copiedField === 'ref' ? (
+                    {copiedField === 'iban' ? (
                       <Check className="size-4 text-emerald-500" />
                     ) : (
                       <Copy className="size-4" />
@@ -161,15 +154,54 @@ export function IbanPayment({ onSubmitPayment }: IbanPaymentProps) {
                   </button>
                 </div>
               </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* Bank */}
+              {bankName && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('iban_bank')}</p>
+                  <div className="rounded-lg border bg-gray-50 p-3">
+                    <p className="text-sm font-medium text-gray-800">{bankName}</p>
+                    {bankSwiftBic && (
+                      <p className="mt-0.5 text-[10px] text-gray-400 font-mono">{bankSwiftBic}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Reference */}
+              {reference && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('iban_reference')}</p>
+                  <div className="flex items-center gap-2 rounded-lg border bg-gray-50 p-3">
+                    <code className="flex-1 text-sm font-mono font-medium text-gray-800">
+                      {reference}
+                    </code>
+                    <button
+                      onClick={() => handleCopy(reference, 'ref')}
+                      className="shrink-0 rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
+                    >
+                      {copiedField === 'ref' ? (
+                        <Check className="size-4 text-emerald-500" />
+                      ) : (
+                        <Copy className="size-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Account holder */}
-            <div>
-              <p className="mb-1 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('iban_holder')}</p>
-              <div className="rounded-lg border bg-gray-50 p-3">
-                <p className="text-sm font-medium text-gray-800">{paymentResponse.account_holder}</p>
+            {accountHolder && (
+              <div>
+                <p className="mb-1 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('iban_holder')}</p>
+                <div className="rounded-lg border bg-gray-50 p-3">
+                  <p className="text-sm font-medium text-gray-800">{accountHolder}</p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Amount */}
             <Separator />

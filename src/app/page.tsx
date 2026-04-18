@@ -1,7 +1,7 @@
 'use client';
 
 // ─── NeXFlowX Checkout Page ─────────────────────────────────────────────────
-// Main entry point. Fetches session from API and renders the checkout.
+// Main entry point. Reads txId from URL and fetches session from API (SDUI).
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -14,71 +14,48 @@ import { CheckoutFooter } from '@/components/checkout/checkout-footer';
 import { LegalViewer } from '@/components/checkout/legal-dialog';
 import { CheckoutSummary } from '@/components/checkout/checkout-summary';
 import { CheckoutSkeleton } from '@/components/checkout/skeleton-loader';
-import type { CheckoutSession, CheckoutMode } from '@/lib/checkout/types';
-
-// ─── Mode Switcher (demo) ───────────────────────────────────────────────────
-
-function ModeSwitcher({ mode, onModeChange }: { mode: CheckoutMode; onModeChange: (m: CheckoutMode) => void }) {
-  return (
-    <div className="fixed bottom-4 right-4 z-50">
-      <div className="flex overflow-hidden rounded-full border bg-white shadow-lg">
-        <button
-          onClick={() => onModeChange('mini-store')}
-          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-            mode === 'mini-store'
-              ? 'bg-teal-600 text-white'
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          Mini-Store
-        </button>
-        <button
-          onClick={() => onModeChange('cart')}
-          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-            mode === 'cart'
-              ? 'bg-teal-600 text-white'
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          Cart
-        </button>
-      </div>
-    </div>
-  );
-}
+import { useTranslation } from '@/lib/checkout/i18n';
+import type { CheckoutSession } from '@/lib/checkout/types';
 
 // ─── Main Checkout Page ─────────────────────────────────────────────────────
 
 export default function CheckoutPage() {
   const [session, setSession] = useState<CheckoutSession | null>(null);
-  const [mode, setMode] = useState<CheckoutMode>('mini-store');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const fetchSession = useCallback(async (m: CheckoutMode) => {
+  const locale = useCheckoutStore((s) => s.locale);
+  const { t } = useTranslation(locale);
+
+  const fetchSession = useCallback(async (txId: string) => {
     setIsLoading(true);
     setError('');
     useCheckoutStore.getState().reset();
 
     try {
-      const res = await fetch(`/api/checkout/session?mode=${m}`);
+      const res = await fetch(`/api/checkout/session?txId=${encodeURIComponent(txId)}`);
       if (!res.ok) throw new Error('Failed to fetch session');
       const data: CheckoutSession = await res.json();
       setSession(data);
     } catch {
-      setError('Failed to load checkout session. Please try again.');
+      setError(t('error_generic'));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
-    fetchSession(mode);
-  }, [mode, fetchSession]);
+    const params = new URLSearchParams(window.location.search);
+    const txId = params.get('txId');
 
-  const handleModeChange = (newMode: CheckoutMode) => {
-    setMode(newMode);
-  };
+    if (!txId) {
+      setError(t('error_session_no_txid'));
+      setIsLoading(false);
+      return;
+    }
+
+    fetchSession(txId);
+  }, [fetchSession, t]);
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -90,13 +67,17 @@ export default function CheckoutPage() {
 
       {error && (
         <div className="flex flex-1 items-center justify-center p-4">
-          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center max-w-sm">
             <p className="text-sm text-red-600">{error}</p>
             <button
-              onClick={() => fetchSession(mode)}
+              onClick={() => {
+                const params = new URLSearchParams(window.location.search);
+                const txId = params.get('txId');
+                if (txId) fetchSession(txId);
+              }}
               className="mt-3 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
             >
-              Retry
+              {t('retry')}
             </button>
           </div>
         </div>
@@ -105,7 +86,7 @@ export default function CheckoutPage() {
       <AnimatePresence mode="wait">
         {session && !isLoading && (
           <motion.div
-            key={session.id}
+            key={session.tx_id}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -113,11 +94,10 @@ export default function CheckoutPage() {
             className="flex min-h-screen flex-col"
           >
             <CheckoutProvider session={session}>
-              {/* Mini-store mode has its own header in the layout, but we add the global header */}
-              {mode === 'cart' && <CheckoutHeader />}
+              <CheckoutHeader />
 
               <CheckoutLayout>
-                {mode === 'mini-store' && (
+                {session.mode === 'embedded' && (
                   <div className="mb-6 flex lg:hidden">
                     <CheckoutSummary />
                   </div>
@@ -131,9 +111,6 @@ export default function CheckoutPage() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Demo mode switcher */}
-      <ModeSwitcher mode={mode} onModeChange={handleModeChange} />
     </div>
   );
 }

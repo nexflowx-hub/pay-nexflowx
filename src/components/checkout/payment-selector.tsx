@@ -1,7 +1,8 @@
 'use client';
 
-// ─── NeXFlowX Payment Selector ─────────────────────────────────────────────
-// Tab-based payment method selection with elegant cards and brand icons.
+// ─── NeXFlowX Payment Selector (SDUI) ─────────────────────────────────────
+// Server-Driven UI: iterates session.available_methods and renders cards
+// dynamically based on the method type from the API. No hardcoded business rules.
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,95 +10,77 @@ import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCheckoutStore } from '@/lib/checkout/store';
 import { useTranslation } from '@/lib/checkout/i18n';
-import { VisaIcon, MastercardIcon, AmexIcon, MbWayIcon, PixIcon } from './payment-icons';
-import type { PaymentMethodType } from '@/lib/checkout/types';
+import type { AvailableMethod } from '@/lib/checkout/types';
 
 interface PaymentSelectorProps {
-  children: (method: PaymentMethodType) => React.ReactNode;
+  children: (method: AvailableMethod) => React.ReactNode;
 }
 
-const methodConfig: Record<
-  PaymentMethodType,
-  {
-    icon: React.ReactNode;
-    brands: React.ReactNode;
-    titleKey: string;
-    descKey: string;
+// ─── SVG Icons by method type ──────────────────────────────────────────────
+
+function MethodIcon({ type, className }: { type: string; className?: string }) {
+  const cls = className ?? 'size-5';
+
+  switch (type) {
+    case 'credit_card':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="20" height="14" x="2" y="5" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
+        </svg>
+      );
+    case 'mbway_native':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="10" height="16" x="7" y="4" rx="1.5" />
+          <circle cx="12" cy="17" r="0.8" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'pix_static':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="20" height="20" x="2" y="2" rx="2" transform="rotate(45 12 12)" />
+        </svg>
+      );
+    case 'bank_transfer':
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 21h18" />
+          <path d="M3 10h18" />
+          <path d="M12 3l9 7-9 7-9-7 9-7z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+      );
   }
-> = {
-  card: {
-    icon: (
-      <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="20" height="14" x="2" y="5" rx="2" />
-        <line x1="2" y1="10" x2="22" y2="10" />
-      </svg>
-    ),
-    brands: (
-      <div className="flex items-center gap-1.5">
-        <VisaIcon className="h-4 w-auto" color="currentColor" />
-        <MastercardIcon className="h-4 w-auto" color="currentColor" />
-        <AmexIcon className="h-4 w-auto" color="currentColor" />
-      </div>
-    ),
-    titleKey: 'card_title',
-    descKey: 'card_desc',
-  },
-  mbway: {
-    icon: (
-      <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="10" height="16" x="7" y="4" rx="1.5" />
-        <circle cx="12" cy="17" r="0.8" fill="currentColor" stroke="none" />
-      </svg>
-    ),
-    brands: <MbWayIcon className="h-5 w-auto" color="currentColor" />,
-    titleKey: 'mbway_title',
-    descKey: 'mbway_desc',
-  },
-  pix: {
-    icon: (
-      <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="20" height="20" x="2" y="2" rx="2" transform="rotate(45 12 12)" />
-      </svg>
-    ),
-    brands: <PixIcon className="h-5 w-auto" color="currentColor" />,
-    titleKey: 'pix_title',
-    descKey: 'pix_desc',
-  },
-  iban: {
-    icon: (
-      <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 21h18" />
-        <path d="M3 10h18" />
-        <path d="M12 3l9 7-9 7-9-7 9-7z" />
-      </svg>
-    ),
-    brands: (
-      <span className="text-[10px] font-medium tracking-wide opacity-60">IBAN / SWIFT</span>
-    ),
-    titleKey: 'iban_title',
-    descKey: 'iban_desc',
-  },
-};
+}
+
+// ─── Payment Selector Component ────────────────────────────────────────────
 
 export function PaymentSelector({ children }: PaymentSelectorProps) {
   const locale = useCheckoutStore((s) => s.locale);
   const session = useCheckoutStore((s) => s.session);
-  const selectedMethod = useCheckoutStore((s) => s.selectedMethod);
-  const setSelectedMethod = useCheckoutStore((s) => s.setSelectedMethod);
+  const selectedMethodId = useCheckoutStore((s) => s.selectedMethodId);
+  const setSelectedMethodId = useCheckoutStore((s) => s.setSelectedMethodId);
   const { t } = useTranslation(locale);
 
-  const [expandedMethod, setExpandedMethod] = useState<PaymentMethodType | null>(null);
+  const [expandedMethodId, setExpandedMethodId] = useState<string | null>(null);
 
   if (!session) return null;
 
-  const { enabled_methods, branding } = session;
+  const { available_methods, branding } = session;
 
-  const handleSelect = (method: PaymentMethodType) => {
-    setSelectedMethod(method);
-    setExpandedMethod(method);
+  const handleSelect = (method: AvailableMethod) => {
+    setSelectedMethodId(method.id);
+    setExpandedMethodId(method.id);
   };
 
-  const activeMethod = expandedMethod || selectedMethod;
+  const activeId = expandedMethodId ?? selectedMethodId;
 
   return (
     <AnimatePresence mode="wait">
@@ -131,15 +114,14 @@ export function PaymentSelector({ children }: PaymentSelectorProps) {
 
         <h3 className="text-sm font-semibold text-gray-900">{t('payment_method')}</h3>
 
-        {/* Method cards */}
+        {/* Method cards — SDUI: driven by available_methods from API */}
         <div className="space-y-2">
-          {enabled_methods.map((method) => {
-            const config = methodConfig[method];
-            const isActive = activeMethod === method;
+          {available_methods.map((method) => {
+            const isActive = activeId === method.id;
 
             return (
               <motion.button
-                key={method}
+                key={method.id}
                 type="button"
                 onClick={() => handleSelect(method)}
                 className={cn(
@@ -159,14 +141,19 @@ export function PaymentSelector({ children }: PaymentSelectorProps) {
                 whileHover={{ scale: 1.005 }}
                 whileTap={{ scale: 0.995 }}
               >
+                {/* Icon: use API icon_url if available, else SVG by type */}
                 <div
                   className={cn(
-                    'flex size-11 items-center justify-center rounded-xl transition-colors',
+                    'flex size-11 items-center justify-center rounded-xl transition-colors shrink-0',
                     isActive ? 'text-white' : 'bg-gray-100 text-gray-500'
                   )}
                   style={isActive ? { backgroundColor: branding.primary_color } : undefined}
                 >
-                  {config.icon}
+                  {method.icon_url ? (
+                    <img src={method.icon_url} alt="" className="size-5 object-contain" />
+                  ) : (
+                    <MethodIcon type={method.type} />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p
@@ -175,11 +162,11 @@ export function PaymentSelector({ children }: PaymentSelectorProps) {
                       isActive ? 'text-gray-900' : 'text-gray-700'
                     )}
                   >
-                    {t(config.titleKey)}
+                    {method.label}
                   </p>
-                  <div className="mt-0.5 flex items-center gap-2 text-gray-400">
-                    {config.brands}
-                  </div>
+                  {method.description && (
+                    <p className="mt-0.5 text-xs text-gray-400 truncate">{method.description}</p>
+                  )}
                 </div>
                 {isActive && (
                   <motion.div
@@ -196,22 +183,27 @@ export function PaymentSelector({ children }: PaymentSelectorProps) {
           })}
         </div>
 
-        {/* Active method content */}
+        {/* Active method content — passes full AvailableMethod to children */}
         <AnimatePresence mode="wait">
-          {activeMethod && (
-            <motion.div
-              key={activeMethod}
-              initial={{ opacity: 0, height: 0, y: -10 }}
-              animate={{ opacity: 1, height: 'auto', y: 0 }}
-              exit={{ opacity: 0, height: 0, y: 10 }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
-              className="overflow-hidden"
-            >
-              <div className="rounded-xl border bg-gray-50/50 p-4 sm:p-5">
-                {children(activeMethod)}
-              </div>
-            </motion.div>
-          )}
+          {activeId && (() => {
+            const activeMethod = available_methods.find((m) => m.id === activeId);
+            if (!activeMethod) return null;
+
+            return (
+              <motion.div
+                key={activeId}
+                initial={{ opacity: 0, height: 0, y: -10 }}
+                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                exit={{ opacity: 0, height: 0, y: 10 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="rounded-xl border bg-gray-50/50 p-4 sm:p-5">
+                  {children(activeMethod)}
+                </div>
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>
       </motion.div>
     </AnimatePresence>

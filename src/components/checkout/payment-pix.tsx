@@ -1,7 +1,8 @@
 'use client';
 
 // ─── NeXFlowX PIX Payment ──────────────────────────────────────────────────
-// QR Code display + copy PIX code button + polling.
+// SDUI-aware: receives the full AvailableMethod, reads PIX data from
+// method.provider_data.metadata or from the submit response.
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,13 +13,14 @@ import { useCheckoutStore } from '@/lib/checkout/store';
 import { useTranslation } from '@/lib/checkout/i18n';
 import { usePaymentPolling } from '@/hooks/use-polling';
 import { copyToClipboard, generateQRDataUrl } from '@/lib/checkout/utils';
-import type { PaymentSubmission, PaymentResponse } from '@/lib/checkout/types';
+import type { PaymentSubmission, PaymentResponse, AvailableMethod } from '@/lib/checkout/types';
 
 interface PixPaymentProps {
+  method: AvailableMethod;
   onSubmitPayment: (submission: PaymentSubmission) => Promise<PaymentResponse>;
 }
 
-export function PixPayment({ onSubmitPayment }: PixPaymentProps) {
+export function PixPayment({ method, onSubmitPayment }: PixPaymentProps) {
   const locale = useCheckoutStore((s) => s.locale);
   const session = useCheckoutStore((s) => s.session);
   const customer = useCheckoutStore((s) => s.customer);
@@ -54,20 +56,25 @@ export function PixPayment({ onSubmitPayment }: PixPaymentProps) {
 
       try {
         const response = await onSubmitPayment({
-          session_id: session.id,
+          tx_id: session.tx_id,
           customer,
-          method: 'pix',
+          method_id: method.id,
+          method_type: method.type,
           amount: summary.total,
           currency: summary.currency,
         });
 
         setPaymentResponse(response);
-        setPaymentId(response.id);
+        setPaymentId(response.payment_id);
         setPaymentStatus('pending');
 
-        if (response.pix_code) {
-          setPixCode(response.pix_code);
-          setQrUrl(generateQRDataUrl(response.pix_code));
+        // Read PIX data from response (takes priority) or fall back to method.provider_data
+        const code = response.pix_code
+          || (method.provider_data?.metadata?.pix_code as string)
+          || '';
+        setPixCode(code);
+        if (code) {
+          setQrUrl(generateQRDataUrl(code));
         }
       } catch {
         // Error handled by store
@@ -115,21 +122,30 @@ export function PixPayment({ onSubmitPayment }: PixPaymentProps) {
             </Badge>
           </div>
         </div>
-        <motion.img
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          src={qrUrl}
-          alt="PIX QR Code"
-          className="size-44 sm:size-48"
-        />
+        {qrUrl && (
+          <motion.img
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            src={qrUrl}
+            alt="PIX QR Code"
+            className="size-44 sm:size-48"
+          />
+        )}
         <p className="mt-1.5 text-center text-[10px] text-gray-400">{t('pix_native_desc')}</p>
       </div>
 
       <div className="flex items-center gap-1.5 mb-1">
         <QrCode className="size-4" style={{ color: session?.branding.primary_color }} />
-        <h4 className="text-sm font-semibold text-gray-900">{t('pix_title')}</h4>
+        <h4 className="text-sm font-semibold text-gray-900">{method.label || t('pix_title')}</h4>
       </div>
+
+      {/* PIX key display */}
+      {method.provider_data?.metadata?.pix_key && (
+        <p className="text-xs text-gray-500 mb-2">
+          Chave PIX: {method.provider_data.metadata.pix_key as string}
+        </p>
+      )}
 
       {/* Instructions */}
       <div className="mt-2 mb-4 w-full rounded-lg bg-gray-50 p-3">
@@ -139,23 +155,25 @@ export function PixPayment({ onSubmitPayment }: PixPaymentProps) {
       </div>
 
       {/* Copy button */}
-      <Button
-        variant="outline"
-        onClick={handleCopy}
-        className="w-full gap-2"
-      >
-        {copied ? (
-          <>
-            <Check className="size-4 text-emerald-500" />
-            <span className="text-emerald-600">{t('pix_copied')}</span>
-          </>
-        ) : (
-          <>
-            <Copy className="size-4" />
-            {t('pix_copy_btn')}
-          </>
-        )}
-      </Button>
+      {pixCode && (
+        <Button
+          variant="outline"
+          onClick={handleCopy}
+          className="w-full gap-2"
+        >
+          {copied ? (
+            <>
+              <Check className="size-4 text-emerald-500" />
+              <span className="text-emerald-600">{t('pix_copied')}</span>
+            </>
+          ) : (
+            <>
+              <Copy className="size-4" />
+              {t('pix_copy_btn')}
+            </>
+          )}
+        </Button>
+      )}
 
       {/* Waiting indicator */}
       {isPolling && (

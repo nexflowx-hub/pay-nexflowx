@@ -153,3 +153,62 @@ Stage Summary:
 - **Native NeXFlowX**: MB WAY & PIX reinforced as native — frontend collects minimal data, backend handles bank routing invisibly
 - **Backend Controls Everything**: Changing `PROVIDER_CONFIGS.card.engine` from 'native' to 'stripe' or 'viva' instantly swaps the card form — zero frontend changes needed
 - **Zero Lint Errors**: Clean ESLint pass with all strict React 19 rules
+
+---
+Task ID: backend-sdui
+Agent: Backend SDUI Agent
+Task: Refactor backend for Server-Driven UI proxy architecture
+
+Work Log:
+- Created `.env.example` with all provider keys (NeXFlowX Core API URL/key, Stripe PK, Viva Wallet, SumUp)
+- Created `.env.local` as local copy with placeholder values
+- Created `src/lib/checkout/api-config.ts` — Central API configuration with `API_CONFIG` object and `getCoreHeaders()` helper for Bearer auth
+- Rewrote `src/lib/checkout/types.ts` with new SDUI types:
+  - `PaymentMethodType` now: `'credit_card' | 'mbway_native' | 'pix_static' | 'bank_transfer' | string`
+  - `PaymentStatus` now: `'idle' | 'pending' | 'processing' | 'gateway_confirmed' | 'failed' | 'expired' | string`
+  - Added `AvailableMethod` interface (id, type, label, description, icon_url, provider_data)
+  - `CheckoutSession` refactored: `tx_id` instead of `id`, `mode: 'embedded' | 'redirect'`, `available_methods` instead of `enabled_methods` + `provider_data`
+  - `PaymentSubmission` refactored: `tx_id` instead of `session_id`, `method_id` + `method_type` instead of `method`
+  - `PaymentResponse` refactored: `payment_id` + `tx_id` instead of `id`, `method_type` instead of `method`, added `swift_bic`, `pix_key`, `return_url`, `receipt_url`
+  - `PollingResponse` updated to match new response shape
+  - Added legacy alias types for gradual migration
+- Rewrote `src/app/api/checkout/session/route.ts` as pure proxy — GET with `txId` query param → forwards to core API `/api/v1/checkout-session/:txId`
+- Rewrote `src/app/api/checkout/submit/route.ts` as pure proxy — POST forwards entire body to core API `/api/v1/checkout-submit`
+- Rewrote `src/app/api/checkout/status/route.ts` as pure proxy — GET with `payment_id` query param → forwards to core API `/api/v1/checkout-status/:payment_id`
+- All routes: proper error handling (400 for missing params, 502 for core API unavailable), no-store cache headers, request body forwarded with auth headers
+
+Stage Summary:
+- All mock data removed from all 3 API routes
+- All routes now proxy to https://api-core.nexflowx.tech via `API_CONFIG.coreUrl`
+- New SDUI types support credit_card, mbway_native, pix_static, bank_transfer (extensible via `| string`)
+- `AvailableMethod` drives all frontend rendering — server decides what methods to show
+- `PaymentEngine` type preserved for multi-provider card architecture
+- Zero ESLint errors, zero TypeScript compilation errors
+- Frontend components still reference old type property names (session.id, enabled_methods, etc.) — will be updated in next task
+
+---
+Task ID: frontend-sdui
+Agent: Frontend SDUI Agent
+Task: Refactor all frontend components for Server-Driven UI architecture
+
+Work Log:
+- Rewrote store.ts with new SDUI types (selectedMethodId, AvailableMethod computed getter)
+- Updated layout.tsx: noindex/nofollow robots, removed all framework references, dynamic title template "Pagamento Seguro | %s"
+- Rewrote page.tsx: txId-based session fetch from URL search params, removed ModeSwitcher entirely, shows CheckoutHeader always
+- Rewrote payment-selector.tsx as SDUI renderer — iterates session.available_methods, renders cards dynamically by type (credit_card/mbway_native/pix_static/bank_transfer), uses API labels/descriptions, icon_url support with SVG fallback
+- Rewrote checkout-body.tsx with type-based routing (method.type → CardPayment/MbWayPayment/PixPayment/IbanPayment), all error text uses i18n
+- Updated payment-card.tsx to accept method: AvailableMethod props, reads engine from method.provider_data.engine, submits with tx_id/method_id/method_type
+- Updated payment-mbway.tsx to accept method: AvailableMethod props, reads phone_prefix from method.provider_data.metadata
+- Updated payment-pix.tsx to accept method: AvailableMethod props, reads PIX data from provider_data.metadata or submit response, shows pix_key
+- Updated payment-iban.tsx to accept method: AvailableMethod props, reads bank data from provider_data.metadata (iban, swift_bic, bank_name, account_holder, reference)
+- Rewrote success-screen.tsx with auto-close/redirect after 5s countdown, reads session.return_url, tries window.close() then redirect, shows countdown with i18n
+- Added 6 missing i18n keys to all 4 languages (pt, en, es, fr): error_session_no_txid, retry, redirecting_in, redirect_close, method_not_supported, loading_session, dismiss
+- Verified processing-screen.tsx already uses i18n (no hardcoded English)
+
+Stage Summary:
+- Zero hardcoded business rules in frontend
+- All UI driven by available_methods from API
+- Auto-redirect after 5s on success (try close → redirect → "close this window")
+- 100% i18n coverage (no hardcoded English in user-visible text)
+- No demo mode switcher in production
+- Zero ESLint errors

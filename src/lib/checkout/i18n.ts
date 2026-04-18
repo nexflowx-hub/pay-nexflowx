@@ -147,6 +147,15 @@ const dictionaries = {
     close: 'Fechar',
     back: 'Voltar',
     or: 'ou',
+    dismiss: 'Fechar',
+
+    // SDUI errors
+    error_session_no_txid: 'ID de transação não encontrado na URL.',
+    retry: 'Tentar novamente',
+    redirecting_in: 'A redirecionar em {seconds}s...',
+    redirect_close: 'Pode fechar esta janela',
+    method_not_supported: 'Método de pagamento não suportado',
+    loading_session: 'A carregar sessão de pagamento...',
   },
   en: {
     secure_checkout: 'Checkout - Encrypted',
@@ -275,6 +284,15 @@ const dictionaries = {
     close: 'Close',
     back: 'Back',
     or: 'or',
+    dismiss: 'Dismiss',
+
+    // SDUI errors
+    error_session_no_txid: 'Transaction ID not found in URL.',
+    retry: 'Try again',
+    redirecting_in: 'Redirecting in {seconds}s...',
+    redirect_close: 'You can close this window',
+    method_not_supported: 'Payment method not supported',
+    loading_session: 'Loading payment session...',
   },
   es: {
     secure_checkout: 'Checkout - Encrypted',
@@ -403,6 +421,15 @@ const dictionaries = {
     close: 'Cerrar',
     back: 'Volver',
     or: 'o',
+    dismiss: 'Cerrar',
+
+    // SDUI errors
+    error_session_no_txid: 'ID de transacción no encontrado en la URL.',
+    retry: 'Intentar de nuevo',
+    redirecting_in: 'Redirigiendo en {seconds}s...',
+    redirect_close: 'Puede cerrar esta ventana',
+    method_not_supported: 'Método de pago no compatible',
+    loading_session: 'Cargando sesión de pago...',
   },
   fr: {
     secure_checkout: 'Checkout - Encrypted',
@@ -531,6 +558,15 @@ const dictionaries = {
     close: 'Fermer',
     back: 'Retour',
     or: 'ou',
+    dismiss: 'Fermer',
+
+    // SDUI errors
+    error_session_no_txid: "ID de transaction non trouvé dans l'URL.",
+    retry: 'Réessayer',
+    redirecting_in: 'Redirection dans {seconds}s...',
+    redirect_close: 'Vous pouvez fermer cette fenêtre',
+    method_not_supported: 'Méthode de paiement non supportée',
+    loading_session: 'Chargement de la session de paiement...',
   },
 } as const;
 

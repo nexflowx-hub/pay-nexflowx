@@ -17,7 +17,8 @@ export function CheckoutLayout({ children }: CheckoutLayoutProps) {
   if (!session) return null;
 
   const { mode, branding } = session;
-  const isMiniStore = mode === 'mini-store';
+  // In SDUI: 'embedded' = split-screen layout (mini-store), 'redirect' = centered (cart)
+  const isMiniStore = mode === 'embedded';
   const isSuccess = step === 'success';
 
   if (isSuccess) {
@@ -125,7 +126,7 @@ export function CheckoutLayout({ children }: CheckoutLayoutProps) {
     );
   }
 
-  // Cart mode: Centered single column
+  // Redirect/embedded fallback: Centered single column
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-lg px-4 py-8 sm:px-6">

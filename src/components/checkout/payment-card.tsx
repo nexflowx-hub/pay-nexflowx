@@ -1,39 +1,19 @@
 'use client';
 
 // ─── NeXFlowX Multi-Engine Card Payment Wrapper ─────────────────────────────
-// This is NOT a hardcoded Stripe form. This is a CAMALEON wrapper that:
-//
-// 1. Reads the `engine` field from session.provider_data.card
-// 2. Dynamically loads the appropriate engine adapter (Stripe, Viva, SumUp, etc.)
-// 3. Each adapter loads its SDK script ON DEMAND via useEffect (NOT in layout.tsx)
-// 4. Falls back to NeXFlowX Native if engine is 'native' or unknown
-//
-// Architecture:
-//   PaymentCard (this wrapper)
-//   └── Engine Adapter (resolved from registry at runtime)
-//       ├── NativeEngine  → NeXFlowX native card form (no external SDK)
-//       ├── StripeEngine  → Loads stripe.js → CardElement
-//       ├── VivaEngine    → Loads vivapayments → IFrame injection
-//       ├── SumUpEngine   → Loads sumup.js → Card form
-//       ├── RedeEngine    → Rede/Cielo (Brazil)
-//       ├── IframeEngine  → Generic iframe slot
-//       └── (custom)      → Any engine registered at runtime
-//
-// MB WAY & PIX remain NATIVE NeXFlowX:
-//   - Frontend collects minimal data (phone / nothing)
-//   - Backend handles bank selection (Viva, Stripe, Elitepay, etc.) invisibly
+// SDUI-aware: receives the full AvailableMethod, reads engine from provider_data.
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, AlertTriangle, RefreshCw, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useCheckoutStore } from '@/lib/checkout/store';
 import { useTranslation } from '@/lib/checkout/i18n';
 import { getEngineComponent, getEngineLoadingKey } from '@/lib/checkout/engines/registry';
-import type { PaymentSubmission, PaymentResponse, ProviderData } from '@/lib/checkout/types';
+import type { PaymentSubmission, PaymentResponse, AvailableMethod, ProviderData } from '@/lib/checkout/types';
 
 interface CardPaymentProps {
+  method: AvailableMethod;
   onSubmitPayment: (submission: PaymentSubmission) => Promise<PaymentResponse>;
 }
 
@@ -52,7 +32,6 @@ function EngineLoadingSkeleton({ message }: { message: string }) {
       </div>
       <div className="text-center space-y-1">
         <p className="text-sm text-gray-600">{message}</p>
-        <p className="text-xs text-gray-400">Loading payment engine...</p>
       </div>
     </div>
   );
@@ -60,7 +39,7 @@ function EngineLoadingSkeleton({ message }: { message: string }) {
 
 // ─── Multi-Engine Wrapper Component ──────────────────────────────────────────
 
-export function CardPayment({ onSubmitPayment }: CardPaymentProps) {
+export function CardPayment({ method, onSubmitPayment }: CardPaymentProps) {
   const locale = useCheckoutStore((s) => s.locale);
   const session = useCheckoutStore((s) => s.session);
   const customer = useCheckoutStore((s) => s.customer);
@@ -71,9 +50,9 @@ export function CardPayment({ onSubmitPayment }: CardPaymentProps) {
   const setStep = useCheckoutStore((s) => s.setStep);
   const { t } = useTranslation(locale);
 
-  // ─── Resolve Engine ──────────────────────────────────
-  const provider: ProviderData | undefined = session?.provider_data?.card;
-  const engine = provider?.engine || 'native';
+  // ─── Resolve Engine from method.provider_data ────────
+  const provider: ProviderData = method.provider_data ?? { engine: 'native' };
+  const engine = provider.engine || 'native';
 
   // ─── Dynamic Engine Component (lazy) ─────────────────
   const [EngineComponent, setEngineComponent] = useState<React.ComponentType<{
@@ -123,9 +102,10 @@ export function CardPayment({ onSubmitPayment }: CardPaymentProps) {
 
       try {
         const response = await onSubmitPayment({
-          session_id: session.id,
+          tx_id: session.tx_id,
           customer,
-          method: 'card',
+          method_id: method.id,
+          method_type: method.type,
           amount: summary.total,
           currency: summary.currency,
           engine,
@@ -135,7 +115,7 @@ export function CardPayment({ onSubmitPayment }: CardPaymentProps) {
 
         setPaymentResponse(response);
 
-        if (response.status === 'confirmed') {
+        if (response.status === 'confirmed' || response.status === 'gateway_confirmed') {
           setPaymentStatus('confirmed');
           setStep('success');
         } else {
@@ -149,7 +129,7 @@ export function CardPayment({ onSubmitPayment }: CardPaymentProps) {
         setIsProcessing(false);
       }
     },
-    [session, summary, customer, engine, onSubmitPayment, setPaymentStatus, setPaymentResponse, setPaymentError, setStep, t]
+    [session, summary, customer, engine, method, onSubmitPayment, setPaymentStatus, setPaymentResponse, setPaymentError, setStep, t]
   );
 
   // ─── Engine load error ───────────────────────────────
@@ -204,7 +184,7 @@ export function CardPayment({ onSubmitPayment }: CardPaymentProps) {
       {/* Engine adapter component */}
       <Suspense fallback={<EngineLoadingSkeleton message={t(getEngineLoadingKey(engine))} />}>
         <EngineComponent
-          provider={provider || { engine: 'native' }}
+          provider={provider}
           onTokenize={handleTokenize}
           isProcessing={isProcessing}
           primaryColor={primaryColor}

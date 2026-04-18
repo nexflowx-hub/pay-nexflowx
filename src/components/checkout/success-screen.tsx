@@ -1,9 +1,9 @@
 'use client';
 
 // ─── NeXFlowX Success Screen ────────────────────────────────────────────────
-// Beautiful in-page success confirmation after payment is completed.
+// Beautiful in-page success confirmation with auto-close/redirect after 5 seconds.
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   CheckCircle2,
@@ -19,6 +19,8 @@ import { useCheckoutStore } from '@/lib/checkout/store';
 import { useTranslation } from '@/lib/checkout/i18n';
 import { formatCurrency } from '@/lib/checkout/utils';
 
+const REDIRECT_SECONDS = 5;
+
 export function SuccessScreen() {
   const locale = useCheckoutStore((s) => s.locale);
   const session = useCheckoutStore((s) => s.session);
@@ -27,9 +29,58 @@ export function SuccessScreen() {
   const paymentResponse = useCheckoutStore((s) => s.paymentResponse);
   const { t } = useTranslation(locale);
 
+  const [countdown, setCountdown] = useState(REDIRECT_SECONDS);
+  const [closed, setClosed] = useState(false);
+
+  // Derived values (must be before early return — no hooks below)
+  const returnUrl = session?.return_url || '';
+
+  // Auto-close/redirect countdown
+  useEffect(() => {
+    if (!session || !summary) return;
+
+    if (countdown <= 0) {
+      // Try to close window (if opened as popup)
+      try {
+        window.close();
+      } catch {
+        // Ignore errors
+      }
+
+      // Check if window was actually closed
+      setTimeout(() => {
+        if (!closed && typeof window !== 'undefined' && !window.closed) {
+          if (returnUrl) {
+            window.location.href = returnUrl;
+          }
+        }
+      }, 300);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [countdown, returnUrl, closed, session, summary]);
+
+  // Listen for beforeunload to detect if the window is being closed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      setClosed(true);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Early return AFTER all hooks
   if (!session || !summary) return null;
 
-  const orderId = paymentResponse?.id?.toUpperCase() || session.id.toUpperCase().substring(0, 12);
+  // Use payment_id from response (new API), fallback to tx_id
+  const orderId = paymentResponse?.payment_id?.toUpperCase() || session.tx_id.toUpperCase().substring(0, 12);
+
+  const showRedirectMessage = countdown <= 0 && !returnUrl;
 
   return (
     <motion.div
@@ -127,7 +178,7 @@ export function SuccessScreen() {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">{t('step_payment')}</span>
                 <span className="font-medium text-gray-700 capitalize">
-                  {paymentResponse?.method || 'card'}
+                  {paymentResponse?.method_type || session.available_methods[0]?.type || ''}
                 </span>
               </div>
             </div>
@@ -147,12 +198,26 @@ export function SuccessScreen() {
             </span>
           </motion.div>
 
+          {/* Countdown / redirect message */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.0 }}
+            className="mt-4 text-sm text-gray-400"
+          >
+            {countdown > 0 ? (
+              <p>{t('redirecting_in', { seconds: countdown })}</p>
+            ) : showRedirectMessage ? (
+              <p>{t('redirect_close')}</p>
+            ) : null}
+          </motion.div>
+
           {/* Actions */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9 }}
-            className="mt-6 flex flex-col gap-3"
+            className="mt-4 flex flex-col gap-3"
           >
             {session.products[0]?.type === 'digital' && (
               <Button
@@ -174,7 +239,7 @@ export function SuccessScreen() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.1 }}
-            className="mt-6 text-xs text-gray-400"
+            className="mt-4 text-xs text-gray-400"
           >
             {t('success_thank_you')}
           </motion.p>

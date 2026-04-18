@@ -1,13 +1,9 @@
 // ─── NeXFlowX Checkout Types ─────────────────────────────────────────────────
-// Strict TypeScript types for the zero-redirect checkout system.
+// Server-Driven UI (SDUI) types for the zero-redirect checkout system.
+// The backend defines what payment methods are available, what fields to collect,
+// and how each method should render — the frontend is a pure interpreter.
 
-export type CheckoutMode = 'cart' | 'mini-store';
-
-export type PaymentMethodType = 'card' | 'mbway' | 'pix' | 'iban';
-
-export type CheckoutStep = 'loading' | 'email' | 'fields' | 'payment' | 'processing' | 'success';
-
-export type PaymentStatus = 'idle' | 'pending' | 'processing' | 'confirmed' | 'failed';
+// ─── Primitives ──────────────────────────────────────────────────────────────
 
 export type Locale = 'pt' | 'en' | 'es' | 'fr';
 
@@ -15,9 +11,36 @@ export type FieldType = 'email' | 'name' | 'address' | 'city' | 'postal_code' | 
 
 export type ProductType = 'digital' | 'physical';
 
-// ─── Payment Engines (multi-provider architecture) ─────────────────────────
+export type CheckoutStep = 'loading' | 'email' | 'fields' | 'payment' | 'processing' | 'success';
+
+// ─── Payment Method Type (SDUI — extensible) ─────────────────────────────────
+// New values: credit_card, mbway_native, pix_static, bank_transfer.
+// The `| string` suffix allows future method types without a type change.
+
+export type PaymentMethodType =
+  | 'credit_card'
+  | 'mbway_native'
+  | 'pix_static'
+  | 'bank_transfer'
+  | string;
+
+// ─── Payment Status (SDUI — full lifecycle) ──────────────────────────────────
+
+export type PaymentStatus =
+  | 'idle'
+  | 'pending'
+  | 'processing'
+  | 'gateway_confirmed'
+  | 'failed'
+  | 'expired'
+  | string;
+
+// ─── Payment Engine (multi-provider architecture) ────────────────────────────
 
 export type PaymentEngine = 'native' | 'stripe' | 'viva' | 'sumup' | 'rede' | 'paypal' | 'iframe' | string;
+
+// ─── Provider Data (per-method engine config) ────────────────────────────────
+// The backend tells the frontend HOW to render each payment method.
 
 export interface ProviderData {
   /** Engine identifier: 'native', 'stripe', 'viva', 'sumup', 'rede', 'paypal', 'iframe', or custom */
@@ -42,9 +65,23 @@ export interface ProviderData {
   icon_url?: string;
 }
 
-export interface PaymentMethodConfig {
+// ─── Available Method (SDUI — drives all frontend rendering) ─────────────────
+// Each method is a self-describing object from the server.
+// The frontend iterates over `available_methods` and renders accordingly.
+
+export interface AvailableMethod {
+  /** Unique method identifier (used in PaymentSubmission.method_id) */
+  id: string;
+  /** Method type — drives which component to render */
   type: PaymentMethodType;
-  provider: ProviderData;
+  /** Display label (e.g. "Visa / Mastercard", "MB WAY") */
+  label: string;
+  /** Optional description text */
+  description?: string;
+  /** Icon URL for the method badge */
+  icon_url?: string;
+  /** Engine & SDK configuration for this method */
+  provider_data: ProviderData;
 }
 
 // ─── Branding Config (from API) ─────────────────────────────────────────────
@@ -80,19 +117,30 @@ export interface CheckoutProduct {
   quantity?: number;
 }
 
-// ─── Checkout Session (from API) ────────────────────────────────────────────
+// ─── Checkout Session (SDUI — from core API) ────────────────────────────────
+// This is the server-driven payload that fully defines the checkout experience.
+// No hardcoded payment methods — everything comes from `available_methods`.
 
 export interface CheckoutSession {
-  id: string;
-  mode: CheckoutMode;
+  /** Transaction ID (used in URL: /checkout/:txId) */
+  tx_id: string;
+  /** Display mode: embedded (iframe/widget) or redirect (full page) */
+  mode: 'embedded' | 'redirect';
+  /** Merchant branding configuration */
   branding: BrandingConfig;
+  /** Fields to collect from the customer */
   collected_fields: CollectedField[];
+  /** Products in this checkout */
   products: CheckoutProduct[];
-  enabled_methods: PaymentMethodType[];
-  /** Per-method provider configuration (engine, keys, script URLs) */
-  provider_data: Record<PaymentMethodType, ProviderData>;
-  success_url?: string;
+  /** Available payment methods (SDUI — drives all rendering) */
+  available_methods: AvailableMethod[];
+  /** Redirect URL after successful payment */
+  return_url?: string;
+  /** Redirect URL if user cancels */
   cancel_url?: string;
+  /** Preferred locale */
+  locale?: Locale;
+  /** ISO 8601 expiry timestamp */
   expires_at: string;
 }
 
@@ -112,10 +160,17 @@ export interface CustomerData {
 // ─── Payment Submission ─────────────────────────────────────────────────────
 
 export interface PaymentSubmission {
-  session_id: string;
+  /** Transaction ID from CheckoutSession */
+  tx_id: string;
+  /** Customer data (fields collected during checkout) */
   customer: CustomerData;
-  method: PaymentMethodType;
+  /** Method ID from available_methods[] */
+  method_id: string;
+  /** Method type from available_methods[].type */
+  method_type: PaymentMethodType;
+  /** Payment amount */
   amount: number;
+  /** Currency code (ISO 4217) */
   currency: string;
   /** Which engine processed this payment */
   engine?: PaymentEngine;
@@ -123,27 +178,34 @@ export interface PaymentSubmission {
   card_token?: string;
   /** Additional engine-specific payload */
   engine_data?: Record<string, unknown>;
-  // MB WAY-specific
+  /** MB WAY phone number */
   phone?: string;
-  // PIX-specific (server generates)
-  // IBAN-specific
 }
 
 // ─── Payment Response ───────────────────────────────────────────────────────
 
 export interface PaymentResponse {
-  id: string;
+  /** Unique payment ID (used for polling) */
+  payment_id: string;
+  /** Transaction ID */
+  tx_id: string;
+  /** Current payment status */
   status: PaymentStatus;
-  method: PaymentMethodType;
-  // PIX-specific
+  /** Method type used */
+  method_type: PaymentMethodType;
+  // ─── PIX fields ─────────────────────────────────────
   pix_code?: string;
   pix_qr_base64?: string;
-  // IBAN-specific
+  pix_key?: string;
+  // ─── Bank Transfer fields ───────────────────────────
   iban?: string;
+  swift_bic?: string;
   bank_name?: string;
   account_holder?: string;
   reference?: string;
-  // General
+  // ─── General ────────────────────────────────────────
+  return_url?: string;
+  receipt_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -152,9 +214,13 @@ export interface PaymentResponse {
 
 export interface PollingResponse {
   payment_id: string;
+  tx_id: string;
   status: PaymentStatus;
-  updated_at: string;
+  method_type: PaymentMethodType;
+  return_url?: string;
   receipt_url?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Order Summary ──────────────────────────────────────────────────────────
@@ -166,3 +232,15 @@ export interface OrderSummary {
   currency: string;
   items: number;
 }
+
+// ─── Legacy Aliases (for gradual migration) ─────────────────────────────────
+// These allow existing frontend code to compile during the migration period.
+
+/** @deprecated Use 'credit_card' */
+export type CardMethodType = 'card';
+
+/** @deprecated Use PaymentResponse.payment_id */
+export type PaymentResponseId = string;
+
+/** @deprecated Use CheckoutSession.tx_id */
+export type SessionId = string;

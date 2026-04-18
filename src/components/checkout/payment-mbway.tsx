@@ -1,11 +1,11 @@
 'use client';
 
 // ─── NeXFlowX MB WAY Payment ────────────────────────────────────────────────
-// Phone input + polling state with radar animation.
+// SDUI-aware: receives the full AvailableMethod, reads phone_prefix from provider_data.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Smartphone, Loader2, CheckCircle2, XCircle, RotateCcw, Shield } from 'lucide-react';
+import { Smartphone, Loader2, XCircle, RotateCcw, Shield } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,13 +13,14 @@ import { useCheckoutStore } from '@/lib/checkout/store';
 import { useTranslation } from '@/lib/checkout/i18n';
 import { usePaymentPolling } from '@/hooks/use-polling';
 import { isValidPTMobile, copyToClipboard } from '@/lib/checkout/utils';
-import type { PaymentSubmission, PaymentResponse } from '@/lib/checkout/types';
+import type { PaymentSubmission, PaymentResponse, AvailableMethod } from '@/lib/checkout/types';
 
 interface MbWayPaymentProps {
+  method: AvailableMethod;
   onSubmitPayment: (submission: PaymentSubmission) => Promise<PaymentResponse>;
 }
 
-export function MbWayPayment({ onSubmitPayment }: MbWayPaymentProps) {
+export function MbWayPayment({ method, onSubmitPayment }: MbWayPaymentProps) {
   const locale = useCheckoutStore((s) => s.locale);
   const session = useCheckoutStore((s) => s.session);
   const customer = useCheckoutStore((s) => s.customer);
@@ -29,6 +30,9 @@ export function MbWayPayment({ onSubmitPayment }: MbWayPaymentProps) {
   const setPaymentError = useCheckoutStore((s) => s.setPaymentError);
   const setStep = useCheckoutStore((s) => s.setStep);
   const { t } = useTranslation(locale);
+
+  // Read phone prefix from provider_data or default to +351
+  const phonePrefix = (method.provider_data?.metadata?.phone_prefix as string) || '+351';
 
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
@@ -73,16 +77,17 @@ export function MbWayPayment({ onSubmitPayment }: MbWayPaymentProps) {
 
     try {
       const response = await onSubmitPayment({
-        session_id: session!.id,
+        tx_id: session!.tx_id,
         customer,
-        method: 'mbway',
+        method_id: method.id,
+        method_type: method.type,
         amount: summary!.total,
         currency: summary!.currency,
-        phone: '+351 ' + phone,
+        phone: phonePrefix + ' ' + phone,
       });
 
       setPaymentResponse(response);
-      setPaymentId(response.id);
+      setPaymentId(response.payment_id);
       setPaymentStatus('pending');
       setPhase('polling');
     } catch {
@@ -132,7 +137,7 @@ export function MbWayPayment({ onSubmitPayment }: MbWayPaymentProps) {
             <label className="text-sm font-medium text-gray-700">{t('mbway_phone_label')}</label>
             <div className="flex gap-2">
               <div className="flex h-11 w-16 shrink-0 items-center justify-center rounded-md border bg-gray-50 text-sm font-medium text-gray-600">
-                +351
+                {phonePrefix}
               </div>
               <div className="relative flex-1">
                 <Smartphone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />

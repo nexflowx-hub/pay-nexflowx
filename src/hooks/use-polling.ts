@@ -64,7 +64,7 @@ export function usePaymentPolling({
       setStatus(data.status);
       useCheckoutStore.getState().setPaymentStatus(data.status);
 
-      if (data.status === 'confirmed') {
+      if (data.status === 'confirmed' || data.status === 'gateway_confirmed') {
         stop();
         onSuccess?.();
       } else if (data.status === 'failed') {

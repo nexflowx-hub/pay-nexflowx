@@ -1,15 +1,16 @@
 // ─── NeXFlowX Checkout Store (Zustand) ──────────────────────────────────────
+// SDUI-aware store: all UI driven by available_methods from the API.
 
 import { create } from 'zustand';
 import type {
   CheckoutSession,
   CheckoutStep,
-  PaymentMethodType,
   PaymentStatus,
   Locale,
   CustomerData,
   PaymentResponse,
   OrderSummary,
+  AvailableMethod,
 } from './types';
 import { detectLocale } from './i18n';
 
@@ -28,14 +29,18 @@ interface CheckoutState {
   // Customer
   customer: CustomerData;
 
-  // Payment
-  selectedMethod: PaymentMethodType | null;
+  // Payment — SDUI: selected by method ID (from available_methods)
+  selectedMethodId: string | null;
   paymentStatus: PaymentStatus;
   paymentResponse: PaymentResponse | null;
   paymentError: string | null;
 
   // Computed
   orderSummary: OrderSummary | null;
+
+  // Computed getter helpers
+  /** Resolve the full AvailableMethod object for the currently selected method */
+  get selectedMethod(): AvailableMethod | null;
 
   // Actions
   setSession: (session: CheckoutSession) => void;
@@ -44,7 +49,7 @@ interface CheckoutState {
   goBack: () => void;
   setLocale: (locale: Locale) => void;
   setCustomer: (data: Partial<CustomerData>) => void;
-  setSelectedMethod: (method: PaymentMethodType) => void;
+  setSelectedMethodId: (methodId: string) => void;
   setPaymentStatus: (status: PaymentStatus) => void;
   setPaymentResponse: (response: PaymentResponse | null) => void;
   setPaymentError: (error: string | null) => void;
@@ -62,7 +67,7 @@ const initialState = {
   previousStep: null,
   locale: 'en' as Locale,
   customer: initialCustomer,
-  selectedMethod: null,
+  selectedMethodId: null as string | null,
   paymentStatus: 'idle' as PaymentStatus,
   paymentResponse: null,
   paymentError: null,
@@ -72,6 +77,13 @@ const initialState = {
 export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   ...initialState,
   locale: detectLocale(),
+
+  // Computed: resolve selectedMethod from selectedMethodId + available_methods
+  get selectedMethod(): AvailableMethod | null {
+    const { session, selectedMethodId } = get();
+    if (!session || !selectedMethodId) return null;
+    return session.available_methods.find((m) => m.id === selectedMethodId) ?? null;
+  },
 
   setSession: (session) => {
     const subtotal = session.products.reduce((acc, p) => acc + p.price * (p.quantity || 1), 0);
@@ -83,7 +95,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
       session,
       isLoadingSession: false,
       step: 'email',
-      selectedMethod: session.enabled_methods[0] || null,
+      selectedMethodId: session.available_methods[0]?.id ?? null,
       orderSummary: {
         subtotal,
         tax,
@@ -114,7 +126,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
       customer: { ...state.customer, ...data },
     })),
 
-  setSelectedMethod: (method) => set({ selectedMethod: method }),
+  setSelectedMethodId: (methodId) => set({ selectedMethodId: methodId }),
 
   setPaymentStatus: (status) => set({ paymentStatus: status }),
 

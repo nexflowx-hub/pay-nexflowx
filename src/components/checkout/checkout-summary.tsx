@@ -24,7 +24,7 @@ export function CheckoutSummary() {
   if (!session || !summary) return null;
 
   const { products, mode } = session;
-  const isMiniStore = mode === 'mini-store';
+  const isMiniStore = mode === 'embedded';
 
   return (
     <div className="rounded-xl border bg-white shadow-sm">

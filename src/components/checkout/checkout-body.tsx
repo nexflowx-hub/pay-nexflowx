@@ -2,10 +2,12 @@
 
 // ─── NeXFlowX Checkout Body ─────────────────────────────────────────────────
 // Orchestrates the entire checkout flow: loading → email → fields → payment → processing → success.
+// SDUI: payment step routes by method.type from the API.
 
 import React, { useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCheckoutStore } from '@/lib/checkout/store';
+import { useTranslation } from '@/lib/checkout/i18n';
 import { CheckoutSummary } from './checkout-summary';
 import { EmailStep } from './email-step';
 import { FieldsStep } from './fields-step';
@@ -16,14 +18,16 @@ import { PixPayment } from './payment-pix';
 import { IbanPayment } from './payment-iban';
 import { SuccessScreen } from './success-screen';
 import { ProcessingScreen } from './processing-screen';
-import type { PaymentSubmission, PaymentResponse } from '@/lib/checkout/types';
+import type { PaymentSubmission, PaymentResponse, AvailableMethod } from '@/lib/checkout/types';
 
 export function CheckoutBody() {
   const step = useCheckoutStore((s) => s.step);
   const session = useCheckoutStore((s) => s.session);
+  const locale = useCheckoutStore((s) => s.locale);
   const paymentError = useCheckoutStore((s) => s.paymentError);
   const setPaymentError = useCheckoutStore((s) => s.setPaymentError);
   const setStep = useCheckoutStore((s) => s.setStep);
+  const { t } = useTranslation(locale);
 
   const [submitError, setSubmitError] = useState('');
 
@@ -52,6 +56,26 @@ export function CheckoutBody() {
     []
   );
 
+  /** Render the payment form for a given AvailableMethod based on its type */
+  const renderPaymentForm = (method: AvailableMethod) => {
+    switch (method.type) {
+      case 'credit_card':
+        return <CardPayment method={method} onSubmitPayment={submitPayment} />;
+      case 'mbway_native':
+        return <MbWayPayment method={method} onSubmitPayment={submitPayment} />;
+      case 'pix_static':
+        return <PixPayment method={method} onSubmitPayment={submitPayment} />;
+      case 'bank_transfer':
+        return <IbanPayment method={method} onSubmitPayment={submitPayment} />;
+      default:
+        return (
+          <div className="py-8 text-center">
+            <p className="text-sm text-gray-500">{t('method_not_supported')}</p>
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <AnimatePresence mode="wait">
@@ -65,7 +89,7 @@ export function CheckoutBody() {
             className="py-8 text-center"
           >
             <div className="mx-auto mb-4 size-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-600" />
-            <p className="text-sm text-gray-500">Loading checkout...</p>
+            <p className="text-sm text-gray-500">{t('loading_session')}</p>
           </motion.div>
         )}
 
@@ -74,7 +98,7 @@ export function CheckoutBody() {
           <motion.div key="email-wrapper" layout>
             <EmailStep onNext={() => setStep('payment')} />
             {/* Summary below on cart mode */}
-            {session?.mode === 'cart' && (
+            {session?.mode === 'redirect' && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -91,7 +115,7 @@ export function CheckoutBody() {
         {step === 'fields' && (
           <motion.div key="fields-wrapper" layout>
             <FieldsStep onNext={() => setStep('payment')} />
-            {session?.mode === 'cart' && (
+            {session?.mode === 'redirect' && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -108,14 +132,7 @@ export function CheckoutBody() {
         {step === 'payment' && (
           <motion.div key="payment-wrapper" layout>
             <PaymentSelector>
-              {(method) => (
-                <>
-                  {method === 'card' && <CardPayment onSubmitPayment={submitPayment} />}
-                  {method === 'mbway' && <MbWayPayment onSubmitPayment={submitPayment} />}
-                  {method === 'pix' && <PixPayment onSubmitPayment={submitPayment} />}
-                  {method === 'iban' && <IbanPayment onSubmitPayment={submitPayment} />}
-                </>
-              )}
+              {(method) => renderPaymentForm(method)}
             </PaymentSelector>
 
             {/* Error toast */}
@@ -128,7 +145,7 @@ export function CheckoutBody() {
                   className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3"
                 >
                   <p className="text-sm text-red-600">
-                    {paymentError || submitError || 'An error occurred'}
+                    {paymentError || submitError || t('error_generic')}
                   </p>
                   <button
                     onClick={() => {
@@ -137,14 +154,14 @@ export function CheckoutBody() {
                     }}
                     className="mt-1 text-xs text-red-500 hover:underline"
                   >
-                    Dismiss
+                    {t('dismiss')}
                   </button>
                 </motion.div>
               )}
             </AnimatePresence>
 
             {/* Summary */}
-            {session?.mode === 'cart' && (
+            {session?.mode === 'redirect' && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

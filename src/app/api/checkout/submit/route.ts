@@ -1,111 +1,68 @@
 // ─── POST /api/checkout/submit ──────────────────────────────────────────────
-// Submits the payment and returns a payment response.
+// Pure proxy to NeXFlowX Core API.
+// Forwards the entire payment submission body and returns the payment response.
+//
+// Proxy: POST {NEXFLOWX_API_URL}/api/v1/checkout-submit
+// No mocks. No in-memory stores. Pure pass-through.
 
 import { NextResponse } from 'next/server';
-import type { PaymentSubmission, PaymentResponse, PaymentMethodType } from '@/lib/checkout/types';
-
-// In-memory store for demo (production would use a real database)
-const paymentStore = new Map<string, PaymentResponse>();
+import { API_CONFIG, getCoreHeaders } from '@/lib/checkout/api-config';
 
 export async function POST(request: Request) {
-  const body: PaymentSubmission = await request.json();
+  try {
+    // Read the request body from the client
+    const body = await request.json();
 
-  const { session_id, customer, method, amount, currency, phone } = body;
-
-  // Simulate processing
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  const paymentId = 'pay_' + Math.random().toString(36).substring(2, 15);
-  const now = new Date().toISOString();
-
-  let response: PaymentResponse;
-
-  switch (method) {
-    case 'card': {
-      // Simulate instant confirmation for cards
-      response = {
-        id: paymentId,
-        status: 'confirmed',
-        method,
-        created_at: now,
-        updated_at: now,
-      };
-      break;
+    // Validate minimum required fields
+    if (!body.tx_id) {
+      return NextResponse.json(
+        { error: 'Missing required field: tx_id' },
+        { status: 400 }
+      );
     }
 
-    case 'mbway': {
-      // MB WAY is async - starts pending
-      response = {
-        id: paymentId,
-        status: 'pending',
-        method,
-        phone,
-        created_at: now,
-        updated_at: now,
-      };
-      // Simulate auto-confirmation after 15 seconds for demo
-      setTimeout(() => {
-        const stored = paymentStore.get(paymentId);
-        if (stored && stored.status === 'pending') {
-          stored.status = 'confirmed';
-          stored.updated_at = new Date().toISOString();
-        }
-      }, 15000);
-      break;
+    if (!body.method_id) {
+      return NextResponse.json(
+        { error: 'Missing required field: method_id' },
+        { status: 400 }
+      );
     }
 
-    case 'pix': {
-      // PIX - generate code and QR, async
-      const pixCode = `00020126580014br.gov.bcb.pix0136novasoft5204000053039865404${amount.toFixed(2)}5802BR5925NOVASOFTECNOLOGIA6009SAOPAULO62070503***6304ABCD`;
-      response = {
-        id: paymentId,
-        status: 'pending',
-        method,
-        pix_code: pixCode,
-        created_at: now,
-        updated_at: now,
-      };
-      // Simulate auto-confirmation after 20 seconds for demo
-      setTimeout(() => {
-        const stored = paymentStore.get(paymentId);
-        if (stored && stored.status === 'pending') {
-          stored.status = 'confirmed';
-          stored.updated_at = new Date().toISOString();
-        }
-      }, 20000);
-      break;
+    const coreUrl = `${API_CONFIG.coreUrl}/api/v1/checkout-submit`;
+
+    const coreResponse = await fetch(coreUrl, {
+      method: 'POST',
+      headers: getCoreHeaders(),
+      body: JSON.stringify(body),
+    });
+
+    if (!coreResponse.ok) {
+      const errorBody = await coreResponse.text().catch(() => '');
+      return NextResponse.json(
+        {
+          error: 'Core API error',
+          status: coreResponse.status,
+          detail: errorBody || undefined,
+        },
+        { status: coreResponse.status }
+      );
     }
 
-    case 'iban': {
-      // Bank transfer - manual confirmation
-      response = {
-        id: paymentId,
-        status: 'pending',
-        method,
-        iban: 'PT50 1234 5678 9012 3456 78901',
-        bank_name: 'Banco Novo',
-        account_holder: 'NovaSoft Tecnologia Lda.',
-        reference: `NF-${Date.now().toString(36).toUpperCase()}`,
-        created_at: now,
-        updated_at: now,
-      };
-      break;
-    }
+    const data = await coreResponse.json();
 
-    default: {
-      const exhaustive: never = method;
-      throw new Error(`Unhandled payment method: ${exhaustive}`);
-    }
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  } catch (err) {
+    console.error('[submit/proxy] Core API unavailable:', err);
+    return NextResponse.json(
+      {
+        error: 'Payment service temporarily unavailable',
+        detail: 'The core payment API is not responding. Please try again in a moment.',
+      },
+      { status: 502 }
+    );
   }
-
-  // Store for polling
-  paymentStore.set(paymentId, response);
-
-  return NextResponse.json(response);
-}
-
-// ─── Helper for polling endpoint ────────────────────────────────────────────
-
-export function getPaymentStatus(paymentId: string): PaymentResponse | undefined {
-  return paymentStore.get(paymentId);
 }
